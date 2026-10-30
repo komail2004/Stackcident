@@ -10,6 +10,7 @@ final class GameModel: ObservableObject {
     @Published private(set) var status = "Drag to aim, rotate, then drop."
     @Published private(set) var visionCharges = 3
     @Published private(set) var levelName = "THE WARMUP"
+    @Published private(set) var nextPieceName = "SOFT CRATE"
 
     weak var scene: TowerScene?
 
@@ -48,17 +49,23 @@ final class GameModel: ObservableObject {
         phase = .ready
         status = "Drag to aim, rotate, then drop."
         levelName = "THE WARMUP"
+        nextPieceName = "SOFT CRATE"
         scene?.resetWorld()
     }
 
     func announcePiece(_ name: String, level: Int) {
-        status = "NEXT UP  ·  \(name)"
+        nextPieceName = name
         levelName = level < 3 ? "THE WARMUP" : level < 7 ? "DANGER ZONE" : level < 12 ? "CHAOS MODE" : "IMPOSSIBLE?"
+        // After a scored placement, preserve the success message until the
+        // player starts the next drop. The upcoming object has its own HUD.
+        if score == 0 && phase == .ready {
+            status = "NEXT UP  ·  \(name)"
+        }
     }
 
     func updateWaitingStatus() {
         guard phase == .falling else { return }
-        if status != "Checking that landing…" {
+        if status != "Landing in progress… look out below!" {
             status = "Landing in progress… look out below!"
         }
     }
