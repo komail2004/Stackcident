@@ -823,3 +823,14 @@ A polished menu without reliable physics prediction is **not** completion of thi
 ## 18. Physics specification cross-reference (2026-10-29)
 
 The detailed, implementation-oriented physics design is maintained in [docs/physics-engine.md](docs/physics-engine.md). It defines units, fixed-step timing, rigid bodies, contact/constraint handling, snapshot completeness, physically simulated Future Vision, ghost playback, stability classification, charge invariants, numerical error metrics, 25 test fixtures, and explicit engine-selection gates. Treat all unmeasured parameter values as experimental starting points rather than shipped guarantees. Any design modification affecting the physics experience must update the physics specification and matching acceptance criteria.
+
+
+---
+
+## 19. Implementation alignment — 2026-10-30
+
+The latest native iPhone prototype includes an animated in-app splash, a Start Game menu, a tutorial sheet, eight geometric piece types, a narrowing challenge footprint, SpriteKit gravity/collisions and a separate, testable drop-resolution policy. These are **implemented source changes, not certified device-tested features**. The current art is stylized prototype geometry, not the eventual illustrated toy-box production aesthetic.
+
+**Gameplay rule clarification:** An ordinary wobble, rotation, or lateral movement is not a loss. A dropped object must cross the true lower world-coordinate kill boundary to fail the current prototype round. Scoring requires demonstrated support and calm/dwell time, with conservative fallback for SpriteKit contact-cache misses. The exact final scoring/loss rules remain subject to usability and physics acceptance testing.
+
+**Priority next:** run Xcode/Simulator and physical-iPhone tests, evaluate camera/touch sizing and difficulty with real playtesters, and build the two-world Future Vision feasibility prototype. Future Vision remains intentionally unavailable and must never be marketed as delivered.
