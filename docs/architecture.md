@@ -740,3 +740,12 @@ Use [physics-engine.md](physics-engine.md) as the detailed implementation contra
 **Architectural debt:** these rules use SpriteKit scene-point units, not the eventual SI-scale physics engine; rendering and physics remain co-located; no complete snapshot/isolated simulation exists. Do not introduce Future Vision using a second inconsistent physics model. Add a dedicated fixed-step simulation adapter and actual parity fixtures first. SpriteKit-only physics is therefore still experimental.
 
 **Validation:** no Xcode build, XCTest or TestFlight execution is established in this environment. Treat the above as code-level change descriptions until confirmed on a Mac/iPhone.
+
+
+## 21. Live prototype architecture consolidation — 2026-10-30
+
+The authoritative SpriteKit prototype now has a single static floor collider, explicitly versionable collision categories (\`platform\`, \`piece\`), one prebuilt body per object, post-physics \`didSimulatePhysics\` sampling, and a pure \`DropRules\` module. Each placement yields exactly one of \`continueFalling\`, \`accepted\` or \`missed\`; no per-object timeout watchdog or first-object exception is used.
+
+The new decision inputs are bounding geometry support, a sampled visual-motion interval, a short stability dwell, elapsed release time and a world-space kill line. Source-level regression tests and the [QA smoke checklist](qa-smoke-checklist.md) cover first, second, and later object landing paths. Contact geometry is still not a complete normal-based support graph; SpriteKit remains an interim solver. The production Future Vision world-snapshot architecture has **not** been implemented or validated.
+
+\`GameModel\` is still the UI-level state machine for score/phase, and \`TowerScene\` owns physics decisions before invoking \`completedPlacement\` or \`failed\`. Never add a second timer or independent collision/scoring authority without updating the requirements and tests.
