@@ -4,9 +4,9 @@ import CoreGraphics
 /// Central tuning values for the iPhone SpriteKit prototype. Units are
 /// SpriteKit scene points/seconds, not SI units or Future Vision parameters.
 enum GameFeel {
-    static let gravityY: CGFloat = -245
-    static let openingClearance: CGFloat = 215
-    static let stackClearance: CGFloat = 155
+    static let gravityY: CGFloat = -195
+    static let openingClearance: CGFloat = 230
+    static let stackClearance: CGFloat = 170
 
     static let standardMass: CGFloat = 0.85
     static let sphereMass: CGFloat = 0.65
