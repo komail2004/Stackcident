@@ -154,3 +154,22 @@ At 3:19 PM the simulator screenshot showed score 1, a red crate on the platform,
 ### Additional limited validation evidence — 2026-10-30
 
 The rewritten pure \`DropRules\` algorithm was reproduced in a standalone Swift file and compiled with the available Linux \`swiftc -parse-as-library\` toolchain. Five assertions passed: first piece on platform, second piece on first, airborne not grounded, valid stable placement scores, and time alone does not score unsupported pieces. This does **not** establish a passing \`xcodebuild\` or actual SpriteKit collision test because Apple's iOS frameworks are not available in this execution environment. Use the repository's XCTest suite and [QA smoke checklist](qa-smoke-checklist.md) for definitive integration validation.
+
+
+## 2026-10-30 — Ball jitter, drop pacing and text-readability iteration
+
+**Trigger:** Screenshot showed score 4 with a sphere trapped near other geometric shapes, noticeable ball vibration reported by the user, and feedback animations that disappear too quickly. Verified in source: prior gravity −420 points/s², sphere restitution 0.06 and angular damping 0.72, immediate status overwrite in \`GameModel.announcePiece\`, and 0.6-second floating success animation.
+
+**Changes committed to \`main\`:**
+- New \`GameFeel.swift\` centralizes current tunables: gravity −195, first spawn +230, later pieces +170, per-shape mass/friction/damping, and text hold/fade timing.
+- All dynamic piece restitution reduced to zero; spheres now have lower friction and greater rotational damping to reduce repeated contact jitter without making the ball static.
+- On accepted landings only, grounded bodies with very low linear/angular velocity may be placed in SpriteKit's resting state; they remain dynamic so future collisions can wake them. Moving/ungrounded bodies must never be force-slept.
+- Disabled continuous collision detection under reduced-speed conditions; tunneling and thin-object tests remain release blockers.
+- Floating success labels now hold for 1.75 seconds and fade over 0.65 seconds.
+- \`GameModel\` keeps success/failure status across the upcoming piece spawn; \`ContentView\` displays \`UP NEXT\` separately.
+- New \`GameFeelTests\` cover configured values, safe sleeping eligibility and readable animation duration.
+- Updated requirements with new testable FR/NFR IDs and official Apple reference entry links. **No online documents were retrieved** because web search was disabled.
+
+**Quality limitation:** no local Xcode compilation, successful GitHub Actions run, SpriteKit physics integration test or iPhone performance capture is confirmed. The source-level changes address likely causes but a screenshot alone cannot isolate the precise offending contact manifold.
+
+**Next evidence:** pull main; regenerate Xcode project (new Swift files), Command+B, Command+U, Command+R. Test centered first drop time, 10-piece session, stationary sphere after settling, collision waking, success message visibility and missed-drop explanation. If ball still vibrates, collect a 5–10 second Simulator recording and \`SKPhysicsBody\` pose/velocity samples to identify contact instability rather than adding random freezes.
