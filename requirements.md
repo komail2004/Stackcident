@@ -607,3 +607,12 @@ The authoritative engineering detail for FR-010–021, FR-030–034, FR-040–05
 **New P0 drop-resolution acceptance fixtures:** late stationary unsupported body does not score; brief contact loss doesn't immediately fail; calm supported body scores once; lower-bound crossing fails once; previous placements wobble without triggering loss; rapid repeated Drop actions do not create duplicate bodies; restart clears scene state; menu navigation doesn't resume a stale live scene. Tests are necessary but insufficient: physical SpriteKit integration must also be tested.
 
 **Open defect risk:** an airborne body can remain in a waiting phase if it never contacts support or reaches the bottom boundary due to a solver anomaly. The proposed policy refuses to invent a success. If observed, capture a reproducible state and add explicit failsafe based on verified body trajectory and physical bounds, not an arbitrary timeout.
+
+
+## 25. Stabilization acceptance gate — 2026-10-30
+
+Before further visual content or Future Vision work, the following MUST be demonstrated in an actual iPhone Simulator and at least one physical iPhone, with recorded build and XCTest results: static platform collides with the first piece; stacked pieces collide with one another; 5–10 correct supported landings score exactly once; an off-platform piece ends the round only once below the lower kill line; no unsupported midair scoring; no false game over from ordinary wobble; replay/restart, menu flow and controls remain functional.
+
+\`DropRules\` is the sole pure landing decision function. No individual piece (including the first) may have a one-off success rule. The scene MUST use compatible platform/piece collision masks and the same physics shape definition from aim to release. Candidate animation MUST NOT alter physical size at the instant of release.
+
+Implementation and expected manual test sequences are documented in [docs/qa-smoke-checklist.md](docs/qa-smoke-checklist.md). Source changes and authored tests are **not** equivalent to passed simulator/physical-device verification.
