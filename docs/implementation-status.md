@@ -92,3 +92,17 @@ Manual test checklist: drop a centered crate; drop a sphere; make an off-edge mi
 **Caveat:** SpriteKit world AABBs and body-center comparisons are an approximate gameplay prototype, especially for rotated/concave objects. Before claiming reliable physics or Future Vision, replace or strengthen with contact-normal support graphs and measure on actual iPhone. Xcode build/XCTest/Simulator run must still be executed on the user's Mac.
 
 **Test:** Pull main, Cmd+B, Cmd+U, Cmd+R; center first crate and wait ~1–2 seconds: score should increment and next piece spawn. Test off-platform miss, wedge edge, 10 pieces, retry, home→restart.
+
+## 2026-10-30 — Build/launch investigation following reported app launch failure
+
+**Status:** Source-only audit. The user's exact Xcode error / crash log was not provided, so the precise cause cannot be confirmed. Avoid calling this a verified working build until a successful compile, XCTest run and simulator launch are observed.
+
+**Changes made:**
+- `project.yml`: removed conflicting generated-Info.plist setting while retaining the explicitly declared Info.plist; removed AppIcon reference without an asset catalog; omitted empty development team.
+- `StackcidentApp/Info.plist`: normalized required native iOS bundle metadata, executable/package keys, portrait orientation and launch-screen declaration; incremented prototype build version.
+- `.github/workflows/ios.yml`: new macOS GitHub Actions pipeline to install XcodeGen, generate the Xcode project, build for iOS Simulator, and run XCTest on an available iPhone Simulator.
+- Existing UIKit/SwiftUI/physics source, splash, menu and game content otherwise preserved.
+
+**Next verification order:** `git pull origin main`, `xcodegen generate`, Xcode Product > Clean Build Folder, Cmd+B, Cmd+U, Cmd+R. If the build fails, capture the **first compiler error** in the Xcode Issue navigator; if it installs but closes, capture Debug console exception and crash report; if it displays a blank screen, verify RootView splash→menu route and SpriteKit scene lifecycle. Actions CI URL: https://github.com/komail2004/Stackcident/actions
+
+**Do not infer:** CI success before a real run, full App Store compatibility, or Future Vision readiness. The current physics solver is still a prototype.
