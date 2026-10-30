@@ -257,43 +257,22 @@ final class TowerScene: SKScene {
         dropTime = nil
         contactSince = nil
         lastSupportTime = nil
-        // Independent SpriteKit action watchdog: if the ordinary scene-update
-        // path stalls, a visibly landed piece can still resolve.
-        object.run(.sequence([.wait(forDuration: 1.75), .run { [weak self, weak object] in
-            guard let self, let object, self.falling === object else { return }
-            self.resolveLandingWatchdog(object)
-        }]), withKey: "landingWatchdog")
         return true
     }
 
-    private func resolveLandingWatchdog(_ object: SKShapeNode) {
-        guard model?.phase == .falling, falling === object else { return }
-        if object.position.y < baseY - 75 {
-            falling = nil
-            model?.failed()
-            return
-        }
-        if isRestingOnSurface(object) {
-            finishDrop()
-        } else {
-            object.run(.sequence([.wait(forDuration: 0.6), .run { [weak self, weak object] in
-                guard let self, let object, self.falling === object else { return }
-                self.resolveLandingWatchdog(object)
-            }]), withKey: "landingWatchdog")
-        }
-    }
-
-    /// Geometric grounded test using the physics shape's bounding region,
-    /// independent of SpriteKit's optional contact cache or sleep state.
+    /// Resting bodies may have no active contact callbacks. Use real
+    /// world-space rectangles, rather than action timers or assumed contacts.
     private func isRestingOnSurface(_ piece: SKShapeNode) -> Bool {
-        let bottom = piece.frame.minY
-        let supports = ([platformNode].compactMap { $0 } + placed.filter { $0 !== piece })
+        let rect = piece.frame
+        let supports = ([platformNode].compactMap { $0 } +
+                        placed.filter { $0 !== piece })
         return supports.contains { support in
-            let top = support.frame.maxY
-            let overlap = min(piece.frame.maxX, support.frame.maxX) -
-                          max(piece.frame.minX, support.frame.minX)
+            let supportRect = support.frame
+            let overlap = min(rect.maxX, supportRect.maxX) -
+                          max(rect.minX, supportRect.minX)
+            let gap = rect.minY - supportRect.maxY
             return piece.position.y > support.position.y &&
-                   overlap > 8 && abs(bottom - top) <= 24
+                   overlap > 10 && gap >= -12 && gap <= 18
         }
     }
 
@@ -353,9 +332,9 @@ final class TowerScene: SKScene {
         let geometrySupported = isRestingOnSurface(object) || hasGeometricSupport(object)
         let speed = hypot(body.velocity.dx, body.velocity.dy)
         let calm = speed < 26 && abs(body.angularVelocity) < 0.55
-        let supported = contactSupported || (geometrySupported && calm)
+        let supported = contactSupported || geometrySupported
         if supported { lastSupportTime = currentTime }
-        if elapsed > 0.55 && supported && calm {
+        if elapsed > 0.55 && geometrySupported && calm {
             if contactSince == nil { contactSince = currentTime }
         } else {
             contactSince = nil
