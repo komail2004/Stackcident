@@ -16,6 +16,8 @@ final class TowerScene: SKScene {
     private var lastTouchX: CGFloat?
     private var dropTime: TimeInterval?
     private var contactSince: TimeInterval?
+    private var lastSupportTime: TimeInterval?
+    private var wasReleasedBelowSpawn = false
     private var lastUpdateTime: TimeInterval?
     private var cameraHeight: CGFloat = 0
     private let baseY: CGFloat = 100
@@ -53,7 +55,12 @@ final class TowerScene: SKScene {
         resetWorld()
     }
 
+    func setPaused(_ paused: Bool) {
+        isPaused = paused
+    }
+
     func resetWorld() {
+        isPaused = false
         removeAllActions()
         children.filter { $0 !== followCamera }.forEach { $0.removeFromParent() }
         followCamera.removeAllActions()
@@ -67,6 +74,8 @@ final class TowerScene: SKScene {
         nextIndex = 0
         dropTime = nil
         contactSince = nil
+        lastSupportTime = nil
+        wasReleasedBelowSpawn = false
         lastUpdateTime = nil
         lastTouchX = nil
         cameraHeight = size.height / 2
@@ -75,7 +84,7 @@ final class TowerScene: SKScene {
 
         // Platform narrows after a couple of successes, not by changing
         // physics behind the player's back. All pieces stay fully dynamic.
-        let platformWidth = min(size.width * 0.57, 215)
+        let platformWidth = min(size.width * 0.46, 172)
         let platform = SKShapeNode(rectOf: CGSize(width: platformWidth, height: 19), cornerRadius: 8)
         platform.position = CGPoint(x: size.width / 2, y: baseY)
         platform.fillColor = SKColor(red: 0.35, green: 0.43, blue: 0.63, alpha: 1)
@@ -171,6 +180,12 @@ final class TowerScene: SKScene {
         shape.strokeColor = .white.withAlphaComponent(0.65)
         shape.lineWidth = 3
         shape.glowWidth = 1.2
+        let highlight = SKShapeNode(circleOfRadius: 5)
+        highlight.fillColor = .white.withAlphaComponent(0.28)
+        highlight.strokeColor = .clear
+        highlight.position = CGPoint(x: -11, y: 9)
+        highlight.zPosition = 2
+        shape.addChild(highlight)
         shape.zPosition = 5
         body.friction = kind == .sphere ? 0.36 : 0.60
         body.restitution = kind == .sphere ? 0.12 : 0.025
@@ -184,9 +199,9 @@ final class TowerScene: SKScene {
         // Nonrepeating, hard shapes arrive very early; sequence is stable
         // across runs, so players improve skill rather than fight randomness.
         let progression: [Piece] = [
-            .block, .sphere, .wedge, .plank, .column,
-            .diamond, .barrel, .tiny, .sphere, .wedge,
-            .column, .diamond, .plank, .barrel, .tiny
+            .block, .wedge, .sphere, .diamond, .column,
+            .tiny, .sphere, .barrel, .wedge, .diamond,
+            .tiny, .column, .sphere, .plank, .barrel
         ]
         return progression[nextIndex % progression.count]
     }
@@ -214,7 +229,7 @@ final class TowerScene: SKScene {
         guard let candidate else { return }
         // Candidate remains below top of actual SpriteKit viewport. Bottom
         // SwiftUI controls are not inside this scene at all.
-        let target = max(size.height / 2, candidate.position.y - size.height * 0.26)
+        let target = max(size.height / 2, candidate.position.y - size.height * 0.36)
         cameraHeight = target
         followCamera.removeAction(forKey: "camera")
         let move = SKAction.move(to: CGPoint(x: size.width / 2, y: target), duration: 0.33)
@@ -242,6 +257,8 @@ final class TowerScene: SKScene {
         falling = object
         dropTime = nil
         contactSince = nil
+        lastSupportTime = nil
+        wasReleasedBelowSpawn = false
         return true
     }
 
@@ -283,8 +300,9 @@ final class TowerScene: SKScene {
         // Only fail a DROP when the newly released piece has clearly fallen
         // off the platform. Already placed blocks can shift without a bogus
         // instant game over.
-        let missed = object.position.y < baseY - 95 ||
-            abs(object.position.x - size.width / 2) > size.width * 0.65
+        // Never lose because the piece merely leans, rotates, or crosses a
+        // horizontal camera margin. Only a clearly fallen piece counts.
+        let missed = object.position.y < baseY - 75
         if missed {
             model?.failed()
             falling = nil
@@ -295,6 +313,7 @@ final class TowerScene: SKScene {
         // settle window; never end a round simply because physics remained
         // active for an arbitrary eight seconds.
         let supported = hasSupportingContact(object)
+        if supported { lastSupportTime = currentTime }
         let speed = hypot(body.velocity.dx, body.velocity.dy)
         let almostStill = speed < 38 && abs(body.angularVelocity) < 0.85
         if elapsed > 0.55 && supported && almostStill {
@@ -309,12 +328,15 @@ final class TowerScene: SKScene {
 
         // Stubbornly moving but supported bodies must not leave the UI in an
         // endless waiting state; accept the placement after a grace period.
-        if elapsed > 3.5 && supported {
+        // Contact callbacks occasionally flicker between solver frames.
+        // A recently supported piece counts as grounded for resolution.
+        let recentlySupported = lastSupportTime.map { currentTime - $0 < 1.2 } ?? false
+        if elapsed > 2.8 && (supported || recentlySupported) {
             finishDrop()
-        } else if elapsed > 7.0 && !supported {
-            // A falling piece may still be in air; only fail once out of
-            // bounds. Keep a truthful progress message instead.
-            model?.updateWaitingStatus()
+        } else if elapsed > 5.5 && object.position.y >= baseY - 75 {
+            // Deadlock prevention: no arbitrary game-over for a visible piece.
+            // An object still inside the playfield resolves as a placement.
+            finishDrop()
         }
     }
 
