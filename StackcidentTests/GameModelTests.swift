@@ -44,6 +44,14 @@ final class GameModelTests: XCTestCase {
         XCTAssertTrue(game.canAim)
     }
 
+    func testUpcomingPieceHasDedicatedState() {
+        let game = GameModel()
+        game.announcePiece("MARBLE MAYHEM", level: 4)
+        XCTAssertEqual(game.nextPieceName, "MARBLE MAYHEM")
+        game.restart()
+        XCTAssertEqual(game.nextPieceName, "SOFT CRATE")
+    }
+
     func testDifficultyLabels() {
         let game = GameModel()
         game.announcePiece("MARBLE MAYHEM", level: 5)
