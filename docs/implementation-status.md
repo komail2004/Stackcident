@@ -29,3 +29,20 @@
 7. Move to visual polish and content only after physics proof succeeds.
 
 See [physics-engine.md](physics-engine.md) and [requirements.md](../requirements.md) for acceptance contracts.
+
+## 2026-10-29 — Gameplay and viewport iteration (source committed; Xcode verification pending)
+
+User testing on iPhone 17 Pro Simulator showed that the previous tower and candidate overlapped bottom SwiftUI controls and difficulty barely increased.
+
+Changes committed to `main`:
+- Split the iPhone screen into a separate title bar, flexible clipped SpriteKit playfield and an opaque bottom control panel. Gameplay no longer renders beneath the DROP button.
+- Introduced `SKCameraNode` following tower growth in world coordinates rather than allowing the stack to disappear under controls.
+- Added six physics-backed shape families: crates, planks, wedges, balls, tall thin objects and heavy blocks; later scores unlock less forgiving shapes.
+- Added density/friction/restitution variation and more aggressive gravity to make shape choices matter.
+- Created physics bodies from their authored local geometry instead of using rotated node frame bounding boxes.
+- Added an explicit danger line and checks for fallen pieces even during aiming, with a restart path.
+- Refined score/status, controls, compact typography, and the primary action state (DROP IT! / TRY AGAIN).
+
+**Remaining shortcomings:** These are prototype source changes, not yet compiled/tested on the user's Mac. SpriteKit physics is not prediction-parity capable as-is. Future Vision remains deliberately disabled rather than faked. Level tuning, contact detection, stability, camera limits, accessibility and camera behavior across device sizes still require simulator and physical-iPhone review.
+
+**To test:** In the cloned repository run `git pull origin main`, open the existing Xcode project, build/run; generate Xcode project only if project.yml changed. Report compiler diagnostics or gameplay footage for corrections.
