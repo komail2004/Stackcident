@@ -17,6 +17,22 @@ final class DropRulesTests: XCTestCase {
                               calmSupportDuration: calm)
     }
 
+    func testRestingOnStaticPlatformCanCompleteWithoutContactCallback() {
+        // TowerScene turns calm geometric floor support into supported=true.
+        // This is the initial-drop regression shown in the simulator.
+        XCTAssertEqual(DropRules.decide(sample(elapsed: 1.3,
+                                               supported: true,
+                                               speed: 0.4,
+                                               angular: 0.01,
+                                               calm: 0.4)), .accepted)
+    }
+
+    func testGeometricNearSupportNeverScoresWhileMovingFast() {
+        XCTAssertEqual(DropRules.decide(sample(elapsed: 6,
+                                               plausible: true,
+                                               speed: 80)), .continueFalling)
+    }
+
     func testWobblingContactIsNotImmediateLoss() {
         XCTAssertEqual(DropRules.decide(sample(supported: true, speed: 80)),
                        .continueFalling)
