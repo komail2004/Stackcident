@@ -616,3 +616,53 @@ Before further visual content or Future Vision work, the following MUST be demon
 \`DropRules\` is the sole pure landing decision function. No individual piece (including the first) may have a one-off success rule. The scene MUST use compatible platform/piece collision masks and the same physics shape definition from aim to release. Candidate animation MUST NOT alter physical size at the instant of release.
 
 Implementation and expected manual test sequences are documented in [docs/qa-smoke-checklist.md](docs/qa-smoke-checklist.md). Source changes and authored tests are **not** equivalent to passed simulator/physical-device verification.
+
+
+---
+
+## 26. iPhone physics feel, rolling stability, and feedback readability — 2026-10-30
+
+**Change reference:** STK-FEEL-001. **Priority:** P0 for a playable prototype. **State:** source implemented; simulator and physical-iPhone verification pending. These requirements take precedence over older prototype-only gravity and feedback timing examples above; production Future Vision physics is still unimplemented.
+
+### Screenshot-grounded defects
+
+The iPhone 17 Pro Simulator screenshot at 3:37 PM showed a score of 4, a sphere apparently jittering between other bodies on the platform, and a failure state. The code review separately established: the scene's previous gravity was −420 points/s²; success popups only animated for 0.6 seconds; and \`announcePiece\` immediately overwrote the user-visible success message after the score incremented. The screenshot alone cannot prove exactly which contact pair causes the jitter, so collision tuning is a hypothesis that requires measured device validation.
+
+### New functional acceptance requirements
+
+- **FR-094 [V1/P0] Controlled fall pacing:** Drops SHALL be visibly readable as a falling motion rather than appearing instantaneous. The same world gravity applies to all pieces; no invisible per-piece speed manipulation. Current prototype tuning: −195 scene-points/s², opening clearance 230 points and next-piece clearance 170 points. Verify against measured device times, not constants alone.
+- **FR-095 [V1/P0] Sphere behavior:** Spherical pieces SHALL remain round rigid bodies, rotate and roll under actual contact, and settle without continuous high-frequency shaking when no further impact is occurring. The app MUST NOT permanently pin balls or other settled pieces to the scene; later impacts can wake them.
+- **FR-096 [V1/P0] Resting transition:** A piece MAY be marked resting only after it passes the grounded landing rule and has low measured linear and angular velocity. Active rolling, floating, falling or unsupported objects MUST NOT be forced to sleep. Grounded bodies MUST remain dynamic and can wake on new contact.
+- **FR-097 [V1/P1] Success-message persistence:** A landing success message SHALL remain readable for at least two seconds in the scene (including a hold interval and gradual fade). The bottom HUD success status SHALL stay visible until the next player action or an overriding genuine failure, rather than being immediately replaced by the next-piece name.
+- **FR-098 [V1/P1] Separate preview label:** The upcoming piece name SHALL be displayed separately from the success/failure status; a new piece entering the aim state must not erase preceding success feedback. All player-facing text shall remain within iPhone safe areas and not overlap the gameplay controls.
+- **FR-099 [V1/P0] Fair loss reason:** On failure, the app SHALL make the missed piece / real loss condition comprehensible; the remaining stable tower alone is not proof that the current piece survived. A moving ball SHALL NOT cause an unrelated game-over merely by jittering.
+
+### New non-functional acceptance requirements
+
+- **NFR-068 [V1/P0] Stable-contact visual quality:** On the selected physical iPhone test matrix, a supported sphere left untouched for three seconds after placement SHOULD not exhibit repetitive visible position jumps greater than 3 screen points peak-to-peak for two continuous seconds, absent new impacts. Review high-frame-rate screen capture or logged body pose samples; intentional rolling and a new collision are excluded.
+- **NFR-069 [V1/P1] Drop-duration target:** First centered crate from spawn to platform contact targets a perceptible **1.3–1.8 seconds** on reference hardware. Measure from the user's DROP action to first impact for 20 repeat trials on each supported reference iPhone. This is a **tuning target, not a guaranteed measured result**; difficulty should come from geometry rather than hidden acceleration.
+- **NFR-070 [V1/P1] Feedback visibility:** Short floating success effects SHOULD have at least a 1.5-second fully readable hold, plus a fade of at least 0.5 seconds. The corresponding SwiftUI HUD result MUST remain until the next drop or an explicit overriding action. Verify on a real device, including reduced-motion setting.
+- **NFR-071 [V1/P1] Solver safety:** Physical material adjustments MUST be centralized and accompanied by no-tunneling, stable-sleep, and new-impact-wakeup checks; disable expensive continuous collision modes only if the selected maximum velocity and minimum fixture size remain safe on device.
+- **NFR-072 [V1/P1] Regression tracking:** Any gravity, spawn, mass, friction, bounce, or damping change MUST reference a versioned tuning value, not an undocumented magic number spread across the UI and scene. Tester observations and recorded performance results must be collected before calling the tuning accepted.
+
+### Acceptance matrix for this change
+
+| Case | User-visible action | Expected |
+|---|---|---|
+| FEEL-01 | Drop centered crate from the first spawn | Impact is visible and reasonably slow; 1.3–1.8 s target, measured |
+| FEEL-02 | Stack wedge, sphere, and beam | Sphere rolls when unsupported/sloped, but does not visibly vibrate indefinitely after coming to rest |
+| FEEL-03 | Wait with the tower untouched for three seconds | No repetitive high-frequency resting jitter exceeding acceptance threshold |
+| FEEL-04 | Drop a new piece onto a resting sphere | Previous sphere can wake and react; there is no invisible permanent freezing |
+| FEEL-05 | Successful placement followed by next-piece spawn | Bottom success message remains; upcoming object name appears in separate HUD |
+| FEEL-06 | Watch floating success text | Text is legible for >2 s including fade; no instantaneous disappearance |
+| FEEL-07 | Deliberately miss platform | Failure reason reflects the newest piece falling below the kill line |
+| FEEL-08 | Play 10 pieces on iPhone 17 Pro Simulator | No false scoring, frozen Drop state or unexplained failure; record outcomes |
+| FEEL-09 | Run with reduced motion and on an older physical iPhone | Feedback stays readable; no unbounded CPU cost or physics drift |
+
+**Source references for further independent validation (not live-verified in this session):**
+- Apple SpriteKit \`SKPhysicsBody\`: https://developer.apple.com/documentation/spritekit/skphysicsbody
+- Apple SpriteKit \`SKPhysicsWorld\`: https://developer.apple.com/documentation/spritekit/skphysicsworld
+- Apple SpriteKit \`SKScene\` update/physics callbacks: https://developer.apple.com/documentation/spritekit/skscene
+- Apple Human Interface Guidelines: https://developer.apple.com/design/human-interface-guidelines
+
+Live web search was disabled while preparing this change. Links are official documentation entry points, **not citations to newly retrieved or verified pages**. Confirm contemporary API behavior and recommendations using those sources before final release.
