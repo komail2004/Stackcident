@@ -720,3 +720,10 @@ The first playable prototype is done **only** when:
 - No unfinished fake UI is presented as real functionality.
 
 **Overall principle:** design Future Vision as a testable simulation subsystem from day one. Treat everything else—the expressive toy-box visuals, humor and progression—as layers that make that core physical mechanic delightful.
+
+
+---
+
+## 19. Detailed physics engineering companion (2026-10-29)
+
+Use [physics-engine.md](physics-engine.md) as the detailed implementation contract for this document's physics and Future Vision subsystem. It elaborates coordinate systems and SI-scale units, fixed-step loop, collision geometry and mass/inertia, contact/support semantics, state cloning and missing internal solver state, preview charging and concurrency invariants, stability classifications, parity error equations, 25 edge-case fixtures, on-device performance gates, and a decision matrix for SpriteKit vs a separately step-able 2D solver. The physics engine remains **unselected pending prototype data**. If these documents conflict, functional requirements take precedence; reconcile by a documented ADR and simultaneous document update.
