@@ -18,6 +18,9 @@ final class TowerScene: SKScene {
     private var dropTime: TimeInterval?
     private var contactSince: TimeInterval?
     private var lastSupportTime: TimeInterval?
+    private var previousFallingPose: CGPoint?
+    private var previousFallingAngle: CGFloat = 0
+    private var restingSince: TimeInterval?
     private var cameraHeight: CGFloat = 0
     private let baseY: CGFloat = 100
     private let colors: [SKColor] = [
@@ -75,6 +78,8 @@ final class TowerScene: SKScene {
         dropTime = nil
         contactSince = nil
         lastSupportTime = nil
+        previousFallingPose = nil
+        restingSince = nil
         lastTouchX = nil
         cameraHeight = size.height / 2
         followCamera.position = CGPoint(x: size.width / 2, y: cameraHeight)
@@ -257,6 +262,8 @@ final class TowerScene: SKScene {
         dropTime = nil
         contactSince = nil
         lastSupportTime = nil
+        previousFallingPose = nil
+        restingSince = nil
         return true
     }
 
@@ -328,26 +335,39 @@ final class TowerScene: SKScene {
         if dropTime == nil { dropTime = currentTime }
         let elapsed = currentTime - (dropTime ?? currentTime)
 
-        // First landing is intentionally straightforward: the screenshot
-        // reproducer has a visibly grounded crate but SpriteKit reports
-        // unstable angular velocity/contact information indefinitely.
-        // Accept only once its center enters the platform's landing band.
-        // This is a spatial condition, not an unconditional timer success.
-        if placed.count == 1, elapsed >= 1.35,
-           let platform = platformNode {
-            let halfWidth = platform.frame.width / 2
-            let withinPlatform = abs(object.position.x - platform.position.x) <
-                                 halfWidth + object.frame.width * 0.20
-            let withinLandingBand = object.position.y >= baseY - 25 &&
-                                    object.position.y <= baseY + 73
-            if withinPlatform && withinLandingBand {
-                finishDrop()
-                return
+        // Resolve every piece with the same rules. Resting SpriteKit bodies
+        // may stop reporting contacts or retain non-zero solver velocities.
+        // Observe *visible pose stability* and a genuine supporting surface,
+        // rather than waiting indefinitely on contact callbacks.
+        let atSurface = isRestingOnSurface(object)
+        if let previous = previousFallingPose {
+            let displacement = hypot(object.position.x - previous.x,
+                                     object.position.y - previous.y)
+            let angleChange = abs(object.zRotation - previousFallingAngle)
+            if atSurface && displacement < 1.8 && angleChange < 0.045 {
+                if restingSince == nil { restingSince = currentTime }
+            } else {
+                restingSince = nil
             }
+        }
+        previousFallingPose = object.position
+        previousFallingAngle = object.zRotation
+
+        if elapsed >= 1.0 && atSurface &&
+           (restingSince.map { currentTime - $0 >= 0.40 } ?? false) {
+            finishDrop()
+            return
+        }
+        // Some near-static objects jitter forever by a few points. When a
+        // piece remains within the surface landing band for several seconds,
+        // recognize it as landed rather than hanging in a disabled UI state.
+        if elapsed >= 3.0 && atSurface {
+            finishDrop()
+            return
         }
 
         let contactSupported = hasSupportingContact(object)
-        let geometrySupported = isRestingOnSurface(object) || hasGeometricSupport(object)
+        let geometrySupported = atSurface || hasGeometricSupport(object)
         let speed = hypot(body.velocity.dx, body.velocity.dy)
         let calm = speed < 26 && abs(body.angularVelocity) < 0.55
         let supported = contactSupported || geometrySupported
