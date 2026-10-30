@@ -191,10 +191,10 @@ final class TowerScene: SKScene {
         highlight.zPosition = 2
         shape.addChild(highlight)
         shape.zPosition = 5
-        body.friction = kind == .sphere ? 0.36 : 0.60
-        body.restitution = kind == .sphere ? 0.12 : 0.025
-        body.linearDamping = 0.23
-        body.angularDamping = 0.25
+        body.friction = kind == .sphere ? 0.50 : 0.82
+        body.restitution = kind == .sphere ? 0.06 : 0.0
+        body.linearDamping = 0.65
+        body.angularDamping = 1.2
         body.usesPreciseCollisionDetection = true
         return (shape, body)
     }
