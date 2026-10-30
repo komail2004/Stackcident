@@ -17,7 +17,6 @@ final class TowerScene: SKScene {
     private var dropTime: TimeInterval?
     private var contactSince: TimeInterval?
     private var lastSupportTime: TimeInterval?
-    private var wasReleasedBelowSpawn = false
     private var lastUpdateTime: TimeInterval?
     private var cameraHeight: CGFloat = 0
     private let baseY: CGFloat = 100
@@ -49,7 +48,7 @@ final class TowerScene: SKScene {
         guard !initialized else { return }
         initialized = true
         backgroundColor = SKColor(red: 0.045, green: 0.061, blue: 0.12, alpha: 1)
-        physicsWorld.gravity = CGVector(dx: 0, dy: -15.5)
+        physicsWorld.gravity = CGVector(dx: 0, dy: -620)
         addChild(followCamera)
         camera = followCamera
         resetWorld()
@@ -75,7 +74,6 @@ final class TowerScene: SKScene {
         dropTime = nil
         contactSince = nil
         lastSupportTime = nil
-        wasReleasedBelowSpawn = false
         lastUpdateTime = nil
         lastTouchX = nil
         cameraHeight = size.height / 2
@@ -333,9 +331,10 @@ final class TowerScene: SKScene {
         let recentlySupported = lastSupportTime.map { currentTime - $0 < 1.2 } ?? false
         if elapsed > 2.8 && (supported || recentlySupported) {
             finishDrop()
-        } else if elapsed > 5.5 && object.position.y >= baseY - 75 {
-            // Deadlock prevention: no arbitrary game-over for a visible piece.
-            // An object still inside the playfield resolves as a placement.
+        } else if elapsed > 5.5 && abs(body.velocity.dy) < 25 &&
+                    object.position.y >= baseY - 75 {
+            // Solver contact reporting can occasionally miss a resting body.
+            // Only resolve when visibly still, not while airborne.
             finishDrop()
         }
     }
