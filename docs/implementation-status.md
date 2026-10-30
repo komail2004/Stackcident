@@ -80,3 +80,15 @@ Manual test checklist: drop a centered crate; drop a sphere; make an off-edge mi
 **Mandatory next validation in Xcode:** `git pull origin main && xcodegen generate`, then Cmd+B, Cmd+U, Cmd+R. Run 10 normal drops, off-edge miss, rapid tapping, repeated Retry, home→start, tall tower camera, and background/foreground behavior. Fix observed build/scene failures before attempting larger visual refactors or claiming polished production quality.
 
 **Technical next step after validation:** prototype a single step-able 2D solver reused by live and preview worlds, define state cloning and record parity measurements. Do not fake future replay or enable prediction tokens prematurely.
+
+## 2026-10-30 — Screenshot-confirmed stalled first drop
+
+**Reported:** The first red crate visibly comes to rest on the blue static platform at score 0, but the UI stays on “Checking that landing…” with Drop disabled.
+
+**Cause in source:** The only normal support signal was `allContactedBodies()`; SpriteKit can return an empty set for resting/sleeping bodies. The previous geometry fallback checked only previously placed blocks and **excluded the floor**, so the first block had no fallback support. Waiting was therefore indefinitely reachable despite a valid landing.
+
+**Fix committed:** `TowerScene` retains the static platform node and introduces an AABB-based geometry support fallback checking the platform **and** previous pieces, requiring horizontal overlap, near-touching vertical surfaces and a lower support. Geometric support is accepted only if the object has low linear/angular velocity. Existing dwell and rule checks then resolve scoring. The actual drop still fails only after crossing the lower kill boundary. Added regression tests for a resting supported first object and rejecting fast unsupported movement.
+
+**Caveat:** SpriteKit world AABBs and body-center comparisons are an approximate gameplay prototype, especially for rotated/concave objects. Before claiming reliable physics or Future Vision, replace or strengthen with contact-normal support graphs and measure on actual iPhone. Xcode build/XCTest/Simulator run must still be executed on the user's Mac.
+
+**Test:** Pull main, Cmd+B, Cmd+U, Cmd+R; center first crate and wait ~1–2 seconds: score should increment and next piece spawn. Test off-platform miss, wedge edge, 10 pieces, retry, home→restart.
