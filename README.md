@@ -32,3 +32,12 @@
 4. Measure preview-to-actual parity and latency on a real iPhone before enabling predictions.
 
 The current SpriteKit-based live prototype is deliberately **not** advertised as accurate future prediction.
+
+
+## Update notes — 2026-10-30
+
+Native iPhone prototype now has an in-app animated splash, a Start Game menu, How to Play, a score/best tracker, and a challenging geometric object sequence. For each drop, a dedicated `DropRules.swift` policy decides whether the object is supported, still falling, or has physically missed. Its XCTest coverage is in `StackcidentTests/DropRulesTests.swift`.
+
+**Pull in Xcode:** `git pull origin main`; regenerate with `xcodegen generate` if you have not done so since the new Swift files were added, then open `Stackcident.xcodeproj`, build with Cmd+B, run with Cmd+R, and test with Cmd+U.
+
+**Must verify on-device:** splash → Start Game → Drop → next piece → miss → Retry → Home; wedge and ball physics, tall-stack camera framing, no phantom game-over, no unsupported false score, and lifecycle transitions. Xcode compilation and device tests have not been run by the assistant. **Future Vision is still disabled** pending a same-engine separate-world physics implementation and accuracy proof.
