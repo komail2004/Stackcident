@@ -106,3 +106,9 @@ Manual test checklist: drop a centered crate; drop a sphere; make an off-edge mi
 **Next verification order:** `git pull origin main`, `xcodegen generate`, Xcode Product > Clean Build Folder, Cmd+B, Cmd+U, Cmd+R. If the build fails, capture the **first compiler error** in the Xcode Issue navigator; if it installs but closes, capture Debug console exception and crash report; if it displays a blank screen, verify RootView splash→menu route and SpriteKit scene lifecycle. Actions CI URL: https://github.com/komail2004/Stackcident/actions
 
 **Do not infer:** CI success before a real run, full App Store compatibility, or Future Vision readiness. The current physics solver is still a prototype.
+
+## 2026-10-30 — Persistent first-drop hang, independent watchdog
+
+Screenshot at 3:07 PM confirms app launches and renders the red block on blue floor, yet score remains zero and primary control remains disabled. This invalidates assumptions that the prior contact+velocity fix was sufficient. Source change adds an independent SpriteKit action watchdog associated with the released piece, checking geometric resting support against the platform and other placed objects at 1.75 seconds and again every 0.6 seconds while unresolved. It resolves only a visibly resting/overlapping surface within a 24-point geometry tolerance; a piece below the real kill boundary still loses. The normal update-loop classification remains as a faster path.
+
+**Source committed, no execution evidence.** If this still hangs, inspect whether the scene's SpriteKit actions and update ticks are running; capture Xcode console, pause debugger, and inspect `TowerScene.falling`, scene `isPaused`, `speed`, platform bounds, and current drop state. Do not declare verified until physical simulator test demonstrates score advancing from 0 to 1.
