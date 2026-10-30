@@ -57,3 +57,12 @@ Repeated iPhone Simulator screenshots showed unsupported/incorrect game-over, st
 - Tests and manual reproduction steps: [iOS QA Smoke Checklist](docs/qa-smoke-checklist.md).
 
 **Still unverified on device:** The assistant cannot execute Xcode/Simulator here. Do not interpret committed code as a passing device build. Check [GitHub Actions](https://github.com/komail2004/Stackcident/actions), then run the smoke tests locally. Future Vision remains intentionally inactive.
+
+
+## Feel and readability update — 2026-10-30
+
+The iPhone prototype now centralizes game-feel parameters in \`StackcidentApp/Game/GameFeel.swift\`. The default release is deliberately slower (gravity −195 scene-points/s² with matched spawn clearance), while spheres have lower friction, no bounce and more angular damping. Only calm grounded pieces may enter SpriteKit's resting state; they remain dynamic.
+
+Success popups persist for 1.75 seconds, then fade for 0.65 seconds. The bottom HUD keeps the success result until the next player action; "UP NEXT" is shown independently. New \`GameFeelTests\` cover the basic thresholds.
+
+These are **source changes**, not verified gameplay results. iPhone Simulator and physical iPhone tests are required. See [new requirements](requirements.md#26-iphone-physics-feel-rolling-stability-and-feedback-readability--2026-10-30) and [QA smoke tests](docs/qa-smoke-checklist.md).
