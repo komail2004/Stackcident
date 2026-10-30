@@ -291,60 +291,40 @@ final class TowerScene: SKScene {
         if dropTime == nil { dropTime = currentTime }
         let elapsed = currentTime - (dropTime ?? currentTime)
 
-        // Only fail a DROP when the newly released piece has clearly fallen
-        // off the platform. Already placed blocks can shift without a bogus
-        // instant game over.
-        // Never lose because the piece merely leans, rotates, or crosses a
-        // horizontal camera margin. Only a clearly fallen piece counts.
-        let missed = object.position.y < baseY - 75
-        if missed {
-            model?.failed()
-            falling = nil
-            return
-        }
-
-        // SpriteKit's contact graph is authoritative. Allow a generous
-        // settle window; never end a round simply because physics remained
-        // active for an arbitrary eight seconds.
         let supported = hasSupportingContact(object)
         if supported { lastSupportTime = currentTime }
         let speed = hypot(body.velocity.dx, body.velocity.dy)
-        let almostStill = speed < 38 && abs(body.angularVelocity) < 0.85
-        if elapsed > 0.55 && supported && almostStill {
+        let calm = supported && speed < 38 && abs(body.angularVelocity) < 0.85
+        if elapsed > 0.55 && calm {
             if contactSince == nil { contactSince = currentTime }
-            if currentTime - (contactSince ?? currentTime) > 0.32 {
-                finishDrop()
-                return
-            }
         } else {
             contactSince = nil
         }
-
-        // Stubbornly moving but supported bodies must not leave the UI in an
-        // endless waiting state; accept the placement after a grace period.
-        // Contact callbacks occasionally flicker between solver frames.
-        // A recently supported piece counts as grounded for resolution.
-        let recentlySupported = lastSupportTime.map { currentTime - $0 < 1.2 } ?? false
-        if elapsed > 2.8 && (supported || recentlySupported) && speed < 70 {
+        let nearbySupport = placed.dropLast().contains { other in
+            abs(other.position.x - object.position.x) <
+                (other.calculateAccumulatedFrame().width + object.calculateAccumulatedFrame().width) * 0.46 &&
+            abs((other.position.y + other.calculateAccumulatedFrame().height / 2) -
+                (object.position.y - object.calculateAccumulatedFrame().height / 2)) < 17
+        }
+        let observation = DropRules.Observation(
+            elapsed: elapsed,
+            y: object.position.y,
+            killY: baseY - 75,
+            supported: supported,
+            recentlySupported: lastSupportTime.map { currentTime - $0 < 1.2 } ?? false,
+            hasPlausibleRestingSupport: nearbySupport,
+            linearSpeed: speed,
+            angularSpeed: abs(body.angularVelocity),
+            calmSupportDuration: contactSince.map { currentTime - $0 } ?? 0
+        )
+        switch DropRules.decide(observation) {
+        case .accepted:
             finishDrop()
-        } else if elapsed > 5.5 && !supported {
-            // Never declare a success just because velocity is near zero:
-            // a briefly suspended or isolated piece may still be airborne.
-            // Check for genuine support geometry before recovering from a
-            // contact-cache miss. A falling body remains active until it
-            // crosses the true lower failure boundary.
-            let plausibleSupport = placed.dropLast().contains { other in
-                abs(other.position.x - object.position.x) <
-                    (other.calculateAccumulatedFrame().width + object.calculateAccumulatedFrame().width) * 0.46 &&
-                abs((other.position.y + other.calculateAccumulatedFrame().height / 2) -
-                    (object.position.y - object.calculateAccumulatedFrame().height / 2)) < 17
-            }
-            if plausibleSupport && speed < 16 &&
-                abs(body.angularVelocity) < 0.4 {
-                finishDrop()
-            } else {
-                model?.updateWaitingStatus()
-            }
+        case .missed:
+            falling = nil
+            model?.failed()
+        case .continueFalling:
+            if elapsed > 5.5 { model?.updateWaitingStatus() }
         }
     }
 
