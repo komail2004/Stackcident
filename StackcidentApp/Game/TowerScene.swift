@@ -17,7 +17,6 @@ final class TowerScene: SKScene {
     private var dropTime: TimeInterval?
     private var contactSince: TimeInterval?
     private var lastSupportTime: TimeInterval?
-    private var lastUpdateTime: TimeInterval?
     private var cameraHeight: CGFloat = 0
     private let baseY: CGFloat = 100
     private let colors: [SKColor] = [
@@ -74,7 +73,6 @@ final class TowerScene: SKScene {
         dropTime = nil
         contactSince = nil
         lastSupportTime = nil
-        lastUpdateTime = nil
         lastTouchX = nil
         cameraHeight = size.height / 2
         followCamera.position = CGPoint(x: size.width / 2, y: cameraHeight)
@@ -256,7 +254,6 @@ final class TowerScene: SKScene {
         dropTime = nil
         contactSince = nil
         lastSupportTime = nil
-        wasReleasedBelowSpawn = false
         return true
     }
 
@@ -289,7 +286,6 @@ final class TowerScene: SKScene {
     }
 
     override func update(_ currentTime: TimeInterval) {
-        defer { lastUpdateTime = currentTime }
         guard let phase = model?.phase, phase != .over else { return }
         guard phase == .falling, let object = falling, let body = object.physicsBody else { return }
         if dropTime == nil { dropTime = currentTime }
@@ -329,13 +325,26 @@ final class TowerScene: SKScene {
         // Contact callbacks occasionally flicker between solver frames.
         // A recently supported piece counts as grounded for resolution.
         let recentlySupported = lastSupportTime.map { currentTime - $0 < 1.2 } ?? false
-        if elapsed > 2.8 && (supported || recentlySupported) {
+        if elapsed > 2.8 && (supported || recentlySupported) && speed < 70 {
             finishDrop()
-        } else if elapsed > 5.5 && abs(body.velocity.dy) < 25 &&
-                    object.position.y >= baseY - 75 {
-            // Solver contact reporting can occasionally miss a resting body.
-            // Only resolve when visibly still, not while airborne.
-            finishDrop()
+        } else if elapsed > 5.5 && !supported {
+            // Never declare a success just because velocity is near zero:
+            // a briefly suspended or isolated piece may still be airborne.
+            // Check for genuine support geometry before recovering from a
+            // contact-cache miss. A falling body remains active until it
+            // crosses the true lower failure boundary.
+            let plausibleSupport = placed.dropLast().contains { other in
+                abs(other.position.x - object.position.x) <
+                    (other.calculateAccumulatedFrame().width + object.calculateAccumulatedFrame().width) * 0.46 &&
+                abs((other.position.y + other.calculateAccumulatedFrame().height / 2) -
+                    (object.position.y - object.calculateAccumulatedFrame().height / 2)) < 17
+            }
+            if plausibleSupport && speed < 16 &&
+                abs(body.angularVelocity) < 0.4 {
+                finishDrop()
+            } else {
+                model?.updateWaitingStatus()
+            }
         }
     }
 
