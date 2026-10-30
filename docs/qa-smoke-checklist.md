@@ -64,3 +64,18 @@ The implementation has no verified real-device performance data and uses SpriteK
 ## CI status
 
 The repo contains \`.github/workflows/ios.yml\`, which is intended to build and test on an iOS Simulator. Workflow success must be checked in GitHub Actions; commit status returned no confirmed passing checks at the time of this document.
+
+
+## 2026-10-30 — Ball stability and readable game feel
+
+In the iPhone 17 Pro Simulator and at least one physical iPhone, record:
+
+1. **Measured first drop:** start with the centered crate, tap Drop and measure time to visible contact. Aim for 1.3–1.8 seconds. Record 20 runs; don't claim target achieved without real footage/timing.
+2. **Ball wobble:** create a wedge + sphere + beam stack, allow the tower to become quiet, capture the sphere's center position over 3 seconds. Look for persistent fast oscillation above a 3-point peak-to-peak threshold rather than deliberate rolling or a new collision.
+3. **Wake behavior:** after an object has come to rest, drop a fresh piece onto/against it. The older dynamic body should react naturally.
+4. **Fair loss:** release an off-platform piece. Only a real crossing of the lower kill line should end the run; wobble without loss should not.
+5. **Feedback:** a floating success label remains legible for ~1.75 seconds then fades for ~0.65; the HUD success status remains until the next user action. The next-piece name is a separate top-of-playfield label.
+6. **Performance:** capture FPS, thermal state and physics CPU time in an extended 10+ object session. Repeat on an older supported iPhone.
+7. **Tunneling:** verify the smaller, faster-moving pieces do not pass through narrow supports now that continuous collision detection is disabled for this low-speed prototype.
+
+These are acceptance tests **to run**, not recorded passing results. Reference values are centralized in \`GameFeel.swift\`. Details: FR-094–099 and NFR-068–072 in \`requirements.md\`.
