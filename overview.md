@@ -816,3 +816,10 @@ A polished menu without reliable physics prediction is **not** completion of thi
 **Document ownership:** Stackcident project.  
 **Maintenance rule:** Update this overview when the product vision changes; put detailed engineering decisions and test results in separate version-controlled documents.  
 **Truthfulness rule:** Do not describe proposed features as shipped, or simulation as trained AI, without evidence.
+
+
+---
+
+## 18. Physics specification cross-reference (2026-10-29)
+
+The detailed, implementation-oriented physics design is maintained in [docs/physics-engine.md](docs/physics-engine.md). It defines units, fixed-step timing, rigid bodies, contact/constraint handling, snapshot completeness, physically simulated Future Vision, ghost playback, stability classification, charge invariants, numerical error metrics, 25 test fixtures, and explicit engine-selection gates. Treat all unmeasured parameter values as experimental starting points rather than shipped guarantees. Any design modification affecting the physics experience must update the physics specification and matching acceptance criteria.
