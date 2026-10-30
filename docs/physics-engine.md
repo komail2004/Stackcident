@@ -655,3 +655,18 @@ The physics subsystem is **designed** when its interfaces and acceptance fixture
 The numerical values are **tuning heuristics**, not engineering guarantees and not cross-engine compatible. The new `DropRulesTests` exercise these decisions independently of SpriteKit. Add real-scene integration tests and benchmark corner cases. Long-lived suspended bodies that never fall or settle require investigation, not silent false scoring.
 
 **Physics design debt:** current contact detection looks at vertical body-center relation and can misclassify side contacts. True support should use contact normals and a grounded support graph, especially for wedge/diamond pieces. World snapshot parity remains entirely unimplemented. The eventual physics engine decision must account for complete contact state, fixed stepping, simultaneous multi-body interactions and world cloning.
+
+
+## 18. SpriteKit live-world repair and boundary — 2026-10-30
+
+The experimental live world previously contained repeated landing detectors and specialized first-block acceptance; these produced inconsistent scoring and unbounded disabled controls. The new baseline contains:
+
+- One static platform with explicit collision and contact filters.
+- One dynamic body per physical piece, created from authored shape geometry and attached exactly at release.
+- A uniform post-step landing evaluator and pure geometry/rules module.
+- A short observed translation/rotation window instead of trusting contact callbacks or stale velocity alone.
+- A real world-space miss boundary rather than time-based game-over.
+- Moderate scene-point gravity, normalized mass, friction, and damping.
+- No freezing or making placed pieces permanently static: later impacts can still affect the tower.
+
+This is not an isolated-world prediction implementation; precise collision normals, true support graphs, snapshot parity and deterministic step control remain for the production physics experiment. Real iPhone tests are explicitly required before these heuristics can be considered validated. See [QA smoke checklist](qa-smoke-checklist.md).
