@@ -578,3 +578,10 @@ Quantitative parity and minimum fun/retention gates are deliberately **TBD until
 **V1 public release passes only when** the above is polished, comprehensible to first-time players, device-tested, accessible to the extent documented, privacy-conscious, performant under defined conditions, and meets applicable App Store and monetization requirements.
 
 **Fundamental distinction:** Stackcident is **an iOS game, not a web app**, and the flagship “see the future” interaction is **a legitimate physics preview, not an invented visual or an unsupported artificial-intelligence accuracy claim**.
+
+
+---
+
+## 23. Physics subsystem verification extension (2026-10-29)
+
+The authoritative engineering detail for FR-010–021, FR-030–034, FR-040–055, NFR-010–018, NFR-020–026, and NFR-050–057 is [docs/physics-engine.md](docs/physics-engine.md). Its PHY-001–PHY-025 fixture suite extends the E2E and PV test matrices. Before physics acceptance, record the chosen solver/version, iOS physical test devices, fixed timestep, full snapshot contract, canonical release semantics, quantitative parity thresholds, false-confident-safe cases, prediction latency distribution, cancellation correctness, and memory/thermal measurements. These numeric thresholds and engine choices remain **open decisions until measured**; the extra specification must not be interpreted as working code or an unconditional guarantee of deterministic cross-device behavior.
