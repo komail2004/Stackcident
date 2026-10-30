@@ -638,3 +638,20 @@ The physics subsystem is **designed** when its interfaces and acceptance fixture
 **Minimum acceptable outcome:** a player can place, rotate, preview and drop an object on an actual iPhone; the preview is computed by a distinct instance of the same physics engine using a controlled snapshot; charge accounting and result invalidation are safe; the predicted ghost and actual drop exhibit measured, trustworthy consistency.
 
 **Next engineering action:** implement the smallest two-world parity experiment and write ADR-0001 from real test results before committing to a particular physics engine.
+
+
+---
+
+## 17. SpriteKit prototype: conservative loss policy (2026-10-30)
+
+**Current implementation, NOT the final prediction solver:** scene physics are in SpriteKit points, gravity is `dy = -620` points/s², and the dropped object alone is evaluated by `DropRules`. The following is intentionally narrower than the final tower-support graph model:
+
+1. A newly released object's center crossing `baseY - 75` causes loss; sideways travel and other previously placed pieces do not cause immediate loss.
+2. Ordinary success requires active support contact, linear speed below 38 scene-points/s, angular speed below 0.85 rad/s and a calm dwell of at least 0.32 s after 0.55 s elapsed.
+3. After 2.8 s a recently contacted or supported slow object (speed below 70 points/s) may resolve, protecting against contact flicker.
+4. After 5.5 s an object can resolve only if geometry indicates nearby plausible support and both linear/angular speed are very low. A motionless unsupported object in open space must **not** be counted as a success.
+5. Otherwise simulation continues until an actual lower-bound miss; no forced time-based game-over is invented.
+
+The numerical values are **tuning heuristics**, not engineering guarantees and not cross-engine compatible. The new `DropRulesTests` exercise these decisions independently of SpriteKit. Add real-scene integration tests and benchmark corner cases. Long-lived suspended bodies that never fall or settle require investigation, not silent false scoring.
+
+**Physics design debt:** current contact detection looks at vertical body-center relation and can misclassify side contacts. True support should use contact normals and a grounded support graph, especially for wedge/diamond pieces. World snapshot parity remains entirely unimplemented. The eventual physics engine decision must account for complete contact state, fixed stepping, simultaneous multi-body interactions and world cloning.
