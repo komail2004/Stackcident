@@ -834,3 +834,12 @@ The latest native iPhone prototype includes an animated in-app splash, a Start G
 **Gameplay rule clarification:** An ordinary wobble, rotation, or lateral movement is not a loss. A dropped object must cross the true lower world-coordinate kill boundary to fail the current prototype round. Scoring requires demonstrated support and calm/dwell time, with conservative fallback for SpriteKit contact-cache misses. The exact final scoring/loss rules remain subject to usability and physics acceptance testing.
 
 **Priority next:** run Xcode/Simulator and physical-iPhone tests, evaluate camera/touch sizing and difficulty with real playtesters, and build the two-world Future Vision feasibility prototype. Future Vision remains intentionally unavailable and must never be marketed as delivered.
+
+
+## 20. Native iOS prototype gameplay stabilization — 2026-10-30
+
+The current prototype retains the native SwiftUI splash/menu, portrait HUD and SpriteKit stacked-shape aesthetic but underwent a substantive physics rewrite after repeated iPhone Simulator bug reports. All pieces now share the same collision configuration and a single post-physics landing decision policy. The floor is an explicit static collider, body geometry is preserved from the aiming preview to the release, dynamic masses are normalized, and scoring waits for a grounded/low-motion interval. An actual dropped piece falling below the platform ends the round with a clear explanation; lateral wobble or an older block moving is not an automatic loss.
+
+**What is proven:** the pure landing rules compiled under the available Linux Swift toolchain, and five standalone geometry/outcome assertions passed. **What is not proven:** SpriteKit runtime collisions, Xcode compilation, XCUITest, iPhone Simulator playthroughs, real-device FPS, and a fully reliable 10-piece run. The first-party Future Vision prediction remains intentionally unimplemented.
+
+The detailed regression matrix is [docs/qa-smoke-checklist.md](docs/qa-smoke-checklist.md). Do not expand scope until it passes on an iPhone; if live SpriteKit remains unreliable, evaluate the controllable single-solver design laid out in the physics architecture instead of adding more ad hoc timeouts.
