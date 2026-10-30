@@ -78,7 +78,6 @@ final class TowerScene: SKScene {
     private func shape(for kind: ShapeKind, difficulty: Int) -> (SKShapeNode, SKPhysicsBody) {
         let level = min(difficulty, 12)
         let shrink = CGFloat(min(level, 8)) * 1.35
-        let path: CGPath
         let body: SKPhysicsBody
         let node: SKShapeNode
 
@@ -100,9 +99,8 @@ final class TowerScene: SKScene {
             p.addLine(to: CGPoint(x: w/2, y: -h/2))
             p.addLine(to: CGPoint(x: w/4, y: h/2))
             p.closeSubpath()
-            path = p
-            node = SKShapeNode(path: path)
-            body = SKPhysicsBody(polygonFrom: path)
+            node = SKShapeNode(path: p)
+            body = SKPhysicsBody(polygonFrom: p)
         case .tall:
             let w: CGFloat = 30
             let h = 78 + CGFloat(level) * 1.5
@@ -200,9 +198,7 @@ final class TowerScene: SKScene {
     }
 
     override func update(_ time: TimeInterval) {
-        guard model?.phase == .falling else { return }
-        if dropStarted == nil { dropStarted = time }
-        let elapsed = time - (dropStarted ?? time)
+        guard let phase = model?.phase, phase != .over else { return }
         let lost = placed.contains { node in
             node.position.y < floorY - 84 ||
             abs(node.position.x - size.width / 2) > size.width * 0.68
@@ -210,9 +206,14 @@ final class TowerScene: SKScene {
         if lost {
             model?.failed()
             activeDropped = nil
+            candidate?.removeFromParent()
+            candidate = nil
             return
         }
-        guard let current = activeDropped, let body = current.physicsBody else { return }
+        guard phase == .falling, let current = activeDropped,
+              let body = current.physicsBody else { return }
+        if dropStarted == nil { dropStarted = time }
+        let elapsed = time - (dropStarted ?? time)
         let speed = hypot(body.velocity.dx, body.velocity.dy)
         let slow = speed < 12 && abs(body.angularVelocity) < 0.22
         if elapsed > 0.85 && slow {
