@@ -670,3 +670,24 @@ The experimental live world previously contained repeated landing detectors and 
 - No freezing or making placed pieces permanently static: later impacts can still affect the tower.
 
 This is not an isolated-world prediction implementation; precise collision normals, true support graphs, snapshot parity and deterministic step control remain for the production physics experiment. Real iPhone tests are explicitly required before these heuristics can be considered validated. See [QA smoke checklist](qa-smoke-checklist.md).
+
+
+---
+
+## 19. Ball jitter and slower arcade gravity — latest tuning, 2026-10-30
+
+**Current implementation authority:** \`StackcidentApp/Game/GameFeel.swift\` in GitHub. Historical gravity values in earlier sections document the evolution of the prototype and are no longer authoritative. The currently proposed scene-point tuning uses gravity **−195 points/s²** (previously −420), an initial spawn clearance of 230 points, and 170 points above the high point of a growing stack.
+
+**Reasoning:** At constant gravitational acceleration, an idealized free-fall time over vertical distance \`h\` is \`sqrt(2h/|g|)\`. Changing both acceleration and release height is required to make a perceptibly slower yet readable drop. SpriteKit contact, damping, moving supports and display frame timing can change observed timing; estimate is not a measurement.
+
+**Sphere stabilization measures:**
+1. Keep the sphere as a true circle fixture, with authored geometry reused at release.
+2. Apply zero restitution and lower sliding friction than box-shaped pieces; do not force it to stick to surfaces or use a static body.
+3. Use additional angular damping on the sphere to dissipate tiny contact-induced rotational energy while preserving rolling under meaningful forces.
+4. Use normal \`SKPhysicsBody\` resting behavior only when a **grounded and very slow** object has already passed landing acceptance. Explicitly set near-zero residual velocity to zero and mark \`isResting\`; new impacts are allowed to wake dynamic bodies.
+5. Disable continuous collision detection in this low-speed toy-scale prototype pending explicit thin-object tunneling tests; this is not a universal production optimization.
+6. Treat persistent jitter under wedge/ball/beam stacks as an **open physics issue until actually measured**. Damping alone is not a mathematical guarantee, and polygon-corner penetration/stacking configurations can still be poorly conditioned.
+
+**Feedback design:** the scene holds congratulatory labels for 1.75 seconds and fades over another 0.65 seconds; SwiftUI messages persist until the user initiates the next drop or a real failure. The separate "UP NEXT" pill gives the next piece's name without overwriting the result.
+
+**Acceptance source:** FR-094–099, NFR-068–072 in [requirements.md](../requirements.md) and tests FEEL-01–09. No on-device jitter analysis or frame capture has been performed within this session.
