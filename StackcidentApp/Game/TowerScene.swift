@@ -59,7 +59,7 @@ final class TowerScene: SKScene {
         guard !didInitialize else { return }
         didInitialize = true
         backgroundColor = SKColor(red: 0.045, green: 0.061, blue: 0.12, alpha: 1)
-        physicsWorld.gravity = CGVector(dx: 0, dy: -420)
+        physicsWorld.gravity = CGVector(dx: 0, dy: GameFeel.gravityY)
         addChild(followCamera)
         camera = followCamera
         resetWorld()
@@ -210,18 +210,22 @@ final class TowerScene: SKScene {
 
         // Normalize mass for scene-point-sized geometry. A default density
         // applied to very large shapes can produce extreme impulses.
-        body.mass = kind == .barrel ? 2.2 : 0.85
+        body.mass = kind == .barrel ? GameFeel.heavyMass :
+                    kind == .sphere ? GameFeel.sphereMass : GameFeel.standardMass
         body.isDynamic = true
         body.affectedByGravity = true
         body.allowsRotation = true
         body.categoryBitMask = Collision.piece
         body.collisionBitMask = Collision.platform | Collision.piece
         body.contactTestBitMask = Collision.platform | Collision.piece
-        body.friction = kind == .sphere ? 0.46 : 0.76
-        body.restitution = kind == .sphere ? 0.06 : 0.0
-        body.linearDamping = 0.35
-        body.angularDamping = 0.72
-        body.usesPreciseCollisionDetection = true
+        body.friction = kind == .sphere ? GameFeel.sphereFriction : GameFeel.standardFriction
+        body.restitution = 0
+        body.linearDamping = kind == .sphere ? GameFeel.sphereDamping : GameFeel.standardDamping
+        body.angularDamping = kind == .sphere ? GameFeel.sphereAngularDamping : GameFeel.standardAngularDamping
+        // At these reduced fall speeds a 30-point minimum body moves only a
+        // fraction of its width per frame. Continuous detection can increase
+        // contact solver work in stacks; regression test for tunneling.
+        body.usesPreciseCollisionDetection = false
         return (node, body)
     }
 
@@ -231,7 +235,8 @@ final class TowerScene: SKScene {
         let kind = selectedPiece()
         let (node, body) = makePiece(kind, level: score)
         let highest = placed.map { $0.frame.maxY }.max() ?? baseY
-        let startY = max(baseY + 215, highest + 150)
+        let startY = max(baseY + GameFeel.openingClearance,
+                         highest + GameFeel.stackClearance)
 
         candidateBody = body
         candidate = node
@@ -344,7 +349,25 @@ final class TowerScene: SKScene {
     }
 
     private func completeCurrentDrop() {
-        guard activeDrop != nil else { return }
+        guard let landed = activeDrop else { return }
+        // SpriteKit's sleeping state preserves dynamic bodies: future impacts
+        // can wake them. Do not pin the tower or freeze moving pieces.
+        if let body = landed.physicsBody {
+            let speed = hypot(body.velocity.dx, body.velocity.dy)
+            if GameFeel.canSleep(
+                grounded: DropRules.isGrounded(
+                    piece: landed.frame,
+                    pieceCenterY: landed.position.y,
+                    supports: supportFrames(for: landed)
+                ),
+                speed: speed,
+                angularSpeed: abs(body.angularVelocity)
+            ) {
+                body.velocity = .zero
+                body.angularVelocity = 0
+                body.isResting = true
+            }
+        }
         activeDrop = nil
         releaseTime = nil
         stableSince = nil
@@ -360,10 +383,13 @@ final class TowerScene: SKScene {
         message.position = CGPoint(x: size.width / 2,
                                    y: followCamera.position.y + size.height * 0.20)
         message.zPosition = 50
+        message.name = "successToast"
+        enumerateChildNodes(withName: "successToast") { node, _ in node.removeFromParent() }
         addChild(message)
         message.run(.sequence([
-            .group([.moveBy(x: 0, y: 37, duration: 0.6),
-                    .fadeOut(withDuration: 0.6)]),
+            .wait(forDuration: GameFeel.successHoldSeconds),
+            .group([.moveBy(x: 0, y: 28, duration: GameFeel.successFadeSeconds),
+                    .fadeOut(withDuration: GameFeel.successFadeSeconds)]),
             .removeFromParent()
         ]))
     }
