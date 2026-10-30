@@ -727,3 +727,16 @@ The first playable prototype is done **only** when:
 ## 19. Detailed physics engineering companion (2026-10-29)
 
 Use [physics-engine.md](physics-engine.md) as the detailed implementation contract for this document's physics and Future Vision subsystem. It elaborates coordinate systems and SI-scale units, fixed-step loop, collision geometry and mass/inertia, contact/support semantics, state cloning and missing internal solver state, preview charging and concurrency invariants, stability classifications, parity error equations, 25 edge-case fixtures, on-device performance gates, and a decision matrix for SpriteKit vs a separately step-able 2D solver. The physics engine remains **unselected pending prototype data**. If these documents conflict, functional requirements take precedence; reconcile by a documented ADR and simultaneous document update.
+
+
+---
+
+## 20. As-built prototype delta — 2026-10-30
+
+**Current Swift source modules:** `RootView` (native splash/menu/tutorial), `ContentView` (separate HUD and clipped SpriteKit playfield), `GameModel` (game phase/score), `TowerScene` (authoritative *prototype* SpriteKit physics and camera), and `DropRules` (pure drop-resolution decision policy). `DropRulesTests` covers contact grace, false losses, real misses and no scoring while unsupported in midair. The repository continues using XcodeGen for the Xcode project configuration.
+
+**State flow today:** splash → main menu → game. A release enters `GameModel.Phase.falling` only when `TowerScene.commitDrop()` accepts it. Each SpriteKit update samples the active piece and queries `DropRules.decide()`. Only an accepted result increments score; crossing the lower kill boundary ends the run. A HOME action removes the game view and returns to the menu.
+
+**Architectural debt:** these rules use SpriteKit scene-point units, not the eventual SI-scale physics engine; rendering and physics remain co-located; no complete snapshot/isolated simulation exists. Do not introduce Future Vision using a second inconsistent physics model. Add a dedicated fixed-step simulation adapter and actual parity fixtures first. SpriteKit-only physics is therefore still experimental.
+
+**Validation:** no Xcode build, XCTest or TestFlight execution is established in this environment. Treat the above as code-level change descriptions until confirmed on a Mac/iPhone.
