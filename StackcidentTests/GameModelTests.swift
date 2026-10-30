@@ -28,6 +28,22 @@ final class GameModelTests: XCTestCase {
         XCTAssertEqual(game.score, 0, "Placement without a falling object must be ignored")
     }
 
+    func testCannotFailWhileNotDropping() {
+        let game = GameModel()
+        game.failed()
+        XCTAssertTrue(game.canAim)
+        XCTAssertEqual(game.score, 0)
+    }
+
+    func testGameOverExplainsMissedPlatform() {
+        let game = GameModel()
+        // Without a live scene, a drop must not begin; nor can a false
+        // failure be dispatched from an old run.
+        game.drop()
+        game.failed()
+        XCTAssertTrue(game.canAim)
+    }
+
     func testDifficultyLabels() {
         let game = GameModel()
         game.announcePiece("MARBLE MAYHEM", level: 5)
