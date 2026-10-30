@@ -10,6 +10,7 @@ final class TowerScene: SKScene {
     private var candidate: SKShapeNode?
     private var falling: SKShapeNode?
     private var placed: [SKShapeNode] = []
+    private var platformNode: SKShapeNode?
     private var activeDefinition: Piece = .block
     private var nextIndex = 0
     private var initialized = false
@@ -69,6 +70,7 @@ final class TowerScene: SKScene {
         candidate = nil
         falling = nil
         placed.removeAll()
+        platformNode = nil
         nextIndex = 0
         dropTime = nil
         contactSince = nil
@@ -90,6 +92,7 @@ final class TowerScene: SKScene {
         platform.physicsBody = SKPhysicsBody(rectangleOf: CGSize(width: platformWidth, height: 19))
         platform.physicsBody?.isDynamic = false
         addChild(platform)
+        platformNode = platform
 
         let halo = SKShapeNode(ellipseOf: CGSize(width: platformWidth + 35, height: 25))
         halo.position = CGPoint(x: size.width / 2, y: baseY - 24)
@@ -257,11 +260,29 @@ final class TowerScene: SKScene {
         return true
     }
 
-    private func hasSupportingContact(_ object: SKShapeNode) -> Bool {
-        guard let body = object.physicsBody else { return false }
+    /// SpriteKit may report no active contacts for bodies that are asleep.
+    /// A conservative geometry-based support check provides the missing
+    /// resting-contact signal, including for the static floor.
+    private func hasGeometricSupport(_ piece: SKShapeNode) -> Bool {
+        let frame = piece.calculateAccumulatedFrame()
+        let bottom = frame.minY
+        let potentialSupports = ([platformNode].compactMap { $0 } + placed.filter { $0 !== piece })
+        return potentialSupports.contains { support in
+            let other = support.calculateAccumulatedFrame()
+            let horizontalOverlap = min(frame.maxX, other.maxX) - max(frame.minX, other.minX)
+            let verticalGap = abs(bottom - other.maxY)
+            // AABB tests are a fallback only, and require low velocity/dwell
+            // before a placement is accepted by DropRules.
+            return horizontalOverlap > min(frame.width, other.width) * 0.18 &&
+                   verticalGap < 13 && piece.position.y > support.position.y
+        }
+    }
+
+    private func hasSupportingContact(_ piece: SKShapeNode) -> Bool {
+        guard let body = piece.physicsBody else { return false }
         return body.allContactedBodies().contains { other in
             guard let n = other.node else { return false }
-            return n !== object && n.position.y < object.position.y + 15
+            return n !== piece && n.position.y < piece.position.y + 12
         }
     }
 
@@ -291,20 +312,16 @@ final class TowerScene: SKScene {
         if dropTime == nil { dropTime = currentTime }
         let elapsed = currentTime - (dropTime ?? currentTime)
 
-        let supported = hasSupportingContact(object)
-        if supported { lastSupportTime = currentTime }
+        let contactSupported = hasSupportingContact(object)
+        let geometrySupported = hasGeometricSupport(object)
         let speed = hypot(body.velocity.dx, body.velocity.dy)
-        let calm = supported && speed < 38 && abs(body.angularVelocity) < 0.85
-        if elapsed > 0.55 && calm {
+        let calm = speed < 26 && abs(body.angularVelocity) < 0.55
+        let supported = contactSupported || (geometrySupported && calm)
+        if supported { lastSupportTime = currentTime }
+        if elapsed > 0.55 && supported && calm {
             if contactSince == nil { contactSince = currentTime }
         } else {
             contactSince = nil
-        }
-        let nearbySupport = placed.dropLast().contains { other in
-            abs(other.position.x - object.position.x) <
-                (other.calculateAccumulatedFrame().width + object.calculateAccumulatedFrame().width) * 0.46 &&
-            abs((other.position.y + other.calculateAccumulatedFrame().height / 2) -
-                (object.position.y - object.calculateAccumulatedFrame().height / 2)) < 17
         }
         let observation = DropRules.Observation(
             elapsed: elapsed,
@@ -312,7 +329,7 @@ final class TowerScene: SKScene {
             killY: baseY - 75,
             supported: supported,
             recentlySupported: lastSupportTime.map { currentTime - $0 < 1.2 } ?? false,
-            hasPlausibleRestingSupport: nearbySupport,
+            hasPlausibleRestingSupport: geometrySupported,
             linearSpeed: speed,
             angularSpeed: abs(body.angularVelocity),
             calmSupportDuration: contactSince.map { currentTime - $0 } ?? 0
