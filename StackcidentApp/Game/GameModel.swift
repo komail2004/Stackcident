@@ -9,6 +9,7 @@ final class GameModel: ObservableObject {
     @Published private(set) var phase: Phase = .ready
     @Published private(set) var status = "Drag to aim, rotate, then drop."
     @Published private(set) var visionCharges = 3
+    @Published private(set) var levelName = "THE WARMUP"
 
     weak var scene: TowerScene?
 
@@ -18,9 +19,9 @@ final class GameModel: ObservableObject {
     func rotate(_ degrees: CGFloat) { guard canAim else { return }; scene?.rotateCandidate(degrees: degrees) }
     func drop() {
         guard canDrop else { return }
+        guard scene?.commitDrop() == true else { return }
         phase = .falling
-        status = "Hold it together…"
-        scene?.commitDrop()
+        status = "Gravity is judging you…"
     }
 
     func completedPlacement() {
@@ -31,7 +32,7 @@ final class GameModel: ObservableObject {
             UserDefaults.standard.set(best, forKey: "bestScore")
         }
         phase = .ready
-        status = "Nice save! Try another."
+        status = "Another impossible save!"
         scene?.spawnNext()
     }
 
@@ -46,7 +47,18 @@ final class GameModel: ObservableObject {
         visionCharges = 3
         phase = .ready
         status = "Drag to aim, rotate, then drop."
+        levelName = "THE WARMUP"
         scene?.resetWorld()
+    }
+
+    func announcePiece(_ name: String, level: Int) {
+        status = "NEXT UP  ·  \(name)"
+        levelName = level < 3 ? "THE WARMUP" : level < 7 ? "DANGER ZONE" : level < 12 ? "CHAOS MODE" : "IMPOSSIBLE?"
+    }
+
+    func updateWaitingStatus() {
+        guard phase == .falling else { return }
+        status = "Still falling… watch the edges!"
     }
 
     func futureVision() {
