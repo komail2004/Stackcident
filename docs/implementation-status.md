@@ -149,3 +149,8 @@ At 3:19 PM the simulator screenshot showed score 1, a red crate on the platform,
 **Project QA:** Added \`docs/qa-smoke-checklist.md\` for 14 end-to-end iPhone scenarios. No actual Xcode build, XCTest completion, frame rate measurements or phone test results have been verified. GitHub combined status returned no confirmed passing status checks.
 
 **Known limitations:** SpriteKit shape bounding boxes are an approximation, especially with triangles and rolling objects. Rigid-body collisions may still be unstable on unusual stacks; challenge balance has not been measured. Future Vision remains unavailable until separate cloned-world simulation passes parity tests. This is a coherent prototype architecture, not a certification of perfection.
+
+
+### Additional limited validation evidence — 2026-10-30
+
+The rewritten pure \`DropRules\` algorithm was reproduced in a standalone Swift file and compiled with the available Linux \`swiftc -parse-as-library\` toolchain. Five assertions passed: first piece on platform, second piece on first, airborne not grounded, valid stable placement scores, and time alone does not score unsupported pieces. This does **not** establish a passing \`xcodebuild\` or actual SpriteKit collision test because Apple's iOS frameworks are not available in this execution environment. Use the repository's XCTest suite and [QA smoke checklist](qa-smoke-checklist.md) for definitive integration validation.
