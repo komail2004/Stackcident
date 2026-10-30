@@ -37,10 +37,9 @@ final class GameModel: ObservableObject {
     }
 
     func failed() {
-        guard phase != .over else { return }
+        guard phase == .falling else { return }
         phase = .over
-        let lines = ["Gravity wins this round.", "The tower has filed a complaint.", "Structural optimism was not enough.", "That landing was… ambitious."]
-        status = lines[score % lines.count]
+        status = "That piece fell below the platform. Gravity wins!"
     }
 
     func restart() {
@@ -60,7 +59,7 @@ final class GameModel: ObservableObject {
     func updateWaitingStatus() {
         guard phase == .falling else { return }
         if status != "Checking that landing…" {
-            status = "Checking that landing…"
+            status = "Landing in progress… look out below!"
         }
     }
 
