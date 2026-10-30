@@ -1,0 +1,18 @@
+# Xcode local/user state
+.DS_Store
+*.xcuserstate
+xcuserdata/
+DerivedData/
+build/
+*.ipa
+*.dSYM
+*.dSYM.zip
+*.mobileprovision
+*.p12
+*.cer
+*.key
+.env
+.env.*
+!.env.example
+# XcodeGen generates this locally
+Stackcident.xcodeproj/
