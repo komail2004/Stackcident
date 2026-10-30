@@ -1,233 +1,321 @@
 import SpriteKit
 
-/// Native iOS SpriteKit vertical slice. Physics is real, but Future Vision still
-/// requires the separate snapshot-capable simulation engine described in docs.
+/// iPhone-native arcade stacking. SpriteKit is the live physics prototype;
+/// Future Vision remains disabled until a separate parity-tested solver exists.
 @MainActor
 final class TowerScene: SKScene {
     weak var model: GameModel?
-
-    private let worldCamera = SKCameraNode()
+    private let followCamera = SKCameraNode()
+    private let scenery = SKNode()
     private var candidate: SKShapeNode?
-    private var activeDropped: SKShapeNode?
+    private var falling: SKShapeNode?
     private var placed: [SKShapeNode] = []
-    private var floor: SKShapeNode?
-    private var lastTouchX: CGFloat?
-    private var dropStarted: TimeInterval?
-    private var stableSince: TimeInterval?
+    private var activeDefinition: Piece = .block
     private var nextIndex = 0
-    private var cameraCenterY: CGFloat = 0
     private var initialized = false
-
-    private let floorY: CGFloat = 98
-    private let palette: [SKColor] = [
-        .init(red: 1, green: 0.70, blue: 0.28, alpha: 1),
-        .init(red: 0.35, green: 0.87, blue: 0.80, alpha: 1),
-        .init(red: 0.99, green: 0.39, blue: 0.49, alpha: 1),
-        .init(red: 0.67, green: 0.48, blue: 0.99, alpha: 1),
-        .init(red: 0.99, green: 0.83, blue: 0.34, alpha: 1)
+    private var lastTouchX: CGFloat?
+    private var dropTime: TimeInterval?
+    private var contactSince: TimeInterval?
+    private var lastUpdateTime: TimeInterval?
+    private var cameraHeight: CGFloat = 0
+    private let baseY: CGFloat = 100
+    private let colors: [SKColor] = [
+        .init(red: 0.99, green: 0.48, blue: 0.40, alpha: 1),
+        .init(red: 0.23, green: 0.83, blue: 0.78, alpha: 1),
+        .init(red: 0.96, green: 0.74, blue: 0.33, alpha: 1),
+        .init(red: 0.67, green: 0.54, blue: 0.98, alpha: 1),
+        .init(red: 0.95, green: 0.38, blue: 0.61, alpha: 1)
     ]
 
-    private enum ShapeKind: Int {
-        case crate, ball, plank, wedge, tall, heavy
+    private enum Piece: Int {
+        case block, plank, sphere, wedge, column, barrel, tiny, diamond
+        var title: String {
+            switch self {
+            case .block: return "SOFT CRATE"
+            case .plank: return "BALANCE BEAM"
+            case .sphere: return "MARBLE MAYHEM"
+            case .wedge: return "TRICKY TRIANGLE"
+            case .column: return "TIPPING TOWER"
+            case .barrel: return "HEAVY BARREL"
+            case .tiny: return "TINY TROUBLE"
+            case .diamond: return "DIAMOND DISASTER"
+            }
+        }
     }
 
     override func didMove(to view: SKView) {
         guard !initialized else { return }
         initialized = true
-        backgroundColor = SKColor(red: 0.06, green: 0.075, blue: 0.14, alpha: 1)
-        physicsWorld.gravity = CGVector(dx: 0, dy: -12.5)
-        addChild(worldCamera)
-        camera = worldCamera
+        backgroundColor = SKColor(red: 0.045, green: 0.061, blue: 0.12, alpha: 1)
+        physicsWorld.gravity = CGVector(dx: 0, dy: -15.5)
+        addChild(followCamera)
+        camera = followCamera
         resetWorld()
     }
 
     func resetWorld() {
-        children.filter { $0 !== worldCamera }.forEach { $0.removeFromParent() }
-        worldCamera.removeAllActions()
+        removeAllActions()
+        children.filter { $0 !== followCamera }.forEach { $0.removeFromParent() }
+        followCamera.removeAllActions()
+        followCamera.setScale(1)
+        scenery.removeAllChildren()
+        scenery.removeFromParent()
+        addChild(scenery)
         candidate = nil
-        activeDropped = nil
+        falling = nil
         placed.removeAll()
-        floor = nil
-        lastTouchX = nil
-        dropStarted = nil
-        stableSince = nil
         nextIndex = 0
-        cameraCenterY = size.height / 2
-        worldCamera.position = CGPoint(x: size.width / 2, y: cameraCenterY)
+        dropTime = nil
+        contactSince = nil
+        lastUpdateTime = nil
+        lastTouchX = nil
+        cameraHeight = size.height / 2
+        followCamera.position = CGPoint(x: size.width / 2, y: cameraHeight)
+        decorateSky()
 
-        let width = min(size.width * 0.66, 255)
-        let base = SKShapeNode(rectOf: CGSize(width: width, height: 20), cornerRadius: 7)
-        base.fillColor = SKColor(red: 0.37, green: 0.49, blue: 0.67, alpha: 1)
-        base.strokeColor = .white.withAlphaComponent(0.35)
-        base.lineWidth = 2
-        base.position = CGPoint(x: size.width / 2, y: floorY)
-        base.physicsBody = SKPhysicsBody(rectangleOf: CGSize(width: width, height: 20))
-        base.physicsBody?.isDynamic = false
-        base.name = "platform"
-        addChild(base)
-        floor = base
+        // Platform narrows after a couple of successes, not by changing
+        // physics behind the player's back. All pieces stay fully dynamic.
+        let platformWidth = min(size.width * 0.57, 215)
+        let platform = SKShapeNode(rectOf: CGSize(width: platformWidth, height: 19), cornerRadius: 8)
+        platform.position = CGPoint(x: size.width / 2, y: baseY)
+        platform.fillColor = SKColor(red: 0.35, green: 0.43, blue: 0.63, alpha: 1)
+        platform.strokeColor = .white.withAlphaComponent(0.52)
+        platform.lineWidth = 2
+        platform.zPosition = 3
+        platform.physicsBody = SKPhysicsBody(rectangleOf: CGSize(width: platformWidth, height: 19))
+        platform.physicsBody?.isDynamic = false
+        addChild(platform)
 
-        let line = SKShapeNode(rectOf: CGSize(width: size.width, height: 2))
-        line.position = CGPoint(x: size.width / 2, y: floorY - 70)
-        line.fillColor = .systemRed.withAlphaComponent(0.24)
-        line.strokeColor = .clear
-        addChild(line)
+        let halo = SKShapeNode(ellipseOf: CGSize(width: platformWidth + 35, height: 25))
+        halo.position = CGPoint(x: size.width / 2, y: baseY - 24)
+        halo.fillColor = .cyan.withAlphaComponent(0.09)
+        halo.strokeColor = .cyan.withAlphaComponent(0.20)
+        halo.zPosition = -1
+        addChild(halo)
+
         spawnNext()
     }
 
-    private func shape(for kind: ShapeKind, difficulty: Int) -> (SKShapeNode, SKPhysicsBody) {
-        let level = min(difficulty, 12)
-        let shrink = CGFloat(min(level, 8)) * 1.35
-        let body: SKPhysicsBody
-        let node: SKShapeNode
-
-        switch kind {
-        case .ball:
-            let radius = max(19, 30 - shrink * 0.42)
-            node = SKShapeNode(circleOfRadius: radius)
-            body = SKPhysicsBody(circleOfRadius: radius)
-        case .plank:
-            let w = max(66, 104 - shrink)
-            let h: CGFloat = 19
-            node = SKShapeNode(rectOf: CGSize(width: w, height: h), cornerRadius: 3)
-            body = SKPhysicsBody(rectangleOf: CGSize(width: w, height: h))
-        case .wedge:
-            let w = max(40, 75 - shrink)
-            let h: CGFloat = 51
-            let p = CGMutablePath()
-            p.move(to: CGPoint(x: -w/2, y: -h/2))
-            p.addLine(to: CGPoint(x: w/2, y: -h/2))
-            p.addLine(to: CGPoint(x: w/4, y: h/2))
-            p.closeSubpath()
-            node = SKShapeNode(path: p)
-            body = SKPhysicsBody(polygonFrom: p)
-        case .tall:
-            let w: CGFloat = 30
-            let h = 78 + CGFloat(level) * 1.5
-            node = SKShapeNode(rectOf: CGSize(width: w, height: h), cornerRadius: 4)
-            body = SKPhysicsBody(rectangleOf: CGSize(width: w, height: h))
-        case .heavy:
-            let w: CGFloat = 58
-            let h: CGFloat = 52
-            node = SKShapeNode(rectOf: CGSize(width: w, height: h), cornerRadius: 9)
-            body = SKPhysicsBody(rectangleOf: CGSize(width: w, height: h))
-            body.density = 3.2
-        case .crate:
-            let w = max(35, 66 - shrink)
-            let h: CGFloat = 46
-            node = SKShapeNode(rectOf: CGSize(width: w, height: h), cornerRadius: 6)
-            body = SKPhysicsBody(rectangleOf: CGSize(width: w, height: h))
+    private func decorateSky() {
+        for i in 0..<45 {
+            let x = CGFloat((i * 83 + 41) % 997) / 997 * max(size.width, 1)
+            let y = CGFloat((i * 137 + 71) % 991) / 991 * 2300
+            let dot = SKShapeNode(circleOfRadius: i % 7 == 0 ? 2.2 : 1.1)
+            dot.position = CGPoint(x: x, y: y)
+            dot.fillColor = .white.withAlphaComponent(i % 3 == 0 ? 0.28 : 0.12)
+            dot.strokeColor = .clear
+            dot.zPosition = -10
+            scenery.addChild(dot)
         }
+        for h in stride(from: 250, through: 2300, by: 230) {
+            let mark = SKLabelNode(fontNamed: "AvenirNext-Medium")
+            mark.text = "✦  \(h / 10) M"
+            mark.fontSize = 10
+            mark.fontColor = .white.withAlphaComponent(0.22)
+            mark.position = CGPoint(x: 44, y: CGFloat(h))
+            mark.zPosition = -2
+            scenery.addChild(mark)
+        }
+    }
 
-        node.fillColor = palette[(nextIndex + kind.rawValue) % palette.count]
-        node.strokeColor = .white.withAlphaComponent(0.60)
-        node.lineWidth = 2.5
-        node.glowWidth = 0.5
-        body.friction = kind == .ball ? 0.42 : 0.65
-        body.restitution = kind == .ball ? 0.14 : 0.03
-        body.linearDamping = 0.16
-        body.angularDamping = 0.19
-        body.allowsRotation = true
+    private func makePiece(_ kind: Piece, score: Int) -> (SKShapeNode, SKPhysicsBody) {
+        let level = CGFloat(min(score, 20))
+        let shape: SKShapeNode
+        let body: SKPhysicsBody
+        switch kind {
+        case .block:
+            let w = max(35, 63 - level * 1.0)
+            let sz = CGSize(width: w, height: 44)
+            shape = SKShapeNode(rectOf: sz, cornerRadius: 9)
+            body = SKPhysicsBody(rectangleOf: sz)
+        case .plank:
+            let sz = CGSize(width: max(62, 100 - level * 1.3), height: 17)
+            shape = SKShapeNode(rectOf: sz, cornerRadius: 7)
+            body = SKPhysicsBody(rectangleOf: sz)
+        case .sphere:
+            let r = max(19, 29 - level * 0.25)
+            shape = SKShapeNode(circleOfRadius: r)
+            body = SKPhysicsBody(circleOfRadius: r)
+        case .wedge:
+            let path = CGMutablePath()
+            path.move(to: CGPoint(x: -34, y: -24))
+            path.addLine(to: CGPoint(x: 34, y: -24))
+            path.addLine(to: CGPoint(x: -2, y: 32))
+            path.closeSubpath()
+            shape = SKShapeNode(path: path)
+            body = SKPhysicsBody(polygonFrom: path)
+        case .column:
+            let sz = CGSize(width: 25, height: 90)
+            shape = SKShapeNode(rectOf: sz, cornerRadius: 8)
+            body = SKPhysicsBody(rectangleOf: sz)
+        case .barrel:
+            let sz = CGSize(width: 54, height: 56)
+            shape = SKShapeNode(rectOf: sz, cornerRadius: 18)
+            body = SKPhysicsBody(rectangleOf: sz)
+            body.density = 2.8
+        case .tiny:
+            let sz = CGSize(width: 32, height: 30)
+            shape = SKShapeNode(rectOf: sz, cornerRadius: 6)
+            body = SKPhysicsBody(rectangleOf: sz)
+        case .diamond:
+            let path = CGMutablePath()
+            path.move(to: CGPoint(x: 0, y: 34))
+            path.addLine(to: CGPoint(x: 32, y: 0))
+            path.addLine(to: CGPoint(x: 0, y: -34))
+            path.addLine(to: CGPoint(x: -32, y: 0))
+            path.closeSubpath()
+            shape = SKShapeNode(path: path)
+            body = SKPhysicsBody(polygonFrom: path)
+        }
+        shape.fillColor = colors[(nextIndex + kind.rawValue) % colors.count]
+        shape.strokeColor = .white.withAlphaComponent(0.65)
+        shape.lineWidth = 3
+        shape.glowWidth = 1.2
+        shape.zPosition = 5
+        body.friction = kind == .sphere ? 0.36 : 0.60
+        body.restitution = kind == .sphere ? 0.12 : 0.025
+        body.linearDamping = 0.23
+        body.angularDamping = 0.25
         body.usesPreciseCollisionDetection = true
-        return (node, body)
+        return (shape, body)
+    }
+
+    private func chosenKind(score: Int) -> Piece {
+        // Nonrepeating, hard shapes arrive very early; sequence is stable
+        // across runs, so players improve skill rather than fight randomness.
+        let progression: [Piece] = [
+            .block, .sphere, .wedge, .plank, .column,
+            .diamond, .barrel, .tiny, .sphere, .wedge,
+            .column, .diamond, .plank, .barrel, .tiny
+        ]
+        return progression[nextIndex % progression.count]
     }
 
     func spawnNext() {
-        guard initialized, candidate == nil, activeDropped == nil else { return }
-        let score = model?.score ?? nextIndex
-        let kinds: [ShapeKind] = score < 2 ? [.crate, .plank] :
-            score < 5 ? [.crate, .plank, .wedge, .ball] :
-            [.ball, .wedge, .tall, .heavy, .plank, .crate]
-        // Deterministic variety from a lightweight, non-random object sequence.
-        let index = (nextIndex * 7 + nextIndex / 3) % kinds.count
-        let kind = kinds[index]
-        let (node, _) = shape(for: kind, difficulty: score)
-        candidateKind = kind
-        let highest = placed.map { $0.position.y + $0.frame.height / 2 }.max() ?? floorY
-        node.position = CGPoint(x: size.width / 2, y: max(floorY + 220, highest + 145))
+        guard initialized, candidate == nil, falling == nil else { return }
+        let score = model?.score ?? 0
+        let kind = chosenKind(score: score)
+        activeDefinition = kind
+        let (node, _) = makePiece(kind, score: score)
+        let highest = placed.map { $0.position.y + $0.frame.height / 2 }.max() ?? baseY
+        let startY = max(baseY + 210, highest + 185)
+        node.position = CGPoint(x: size.width / 2, y: startY)
         node.name = "candidate"
+        node.alpha = 0
         addChild(node)
+        node.run(SKAction.fadeIn(withDuration: 0.22))
         candidate = node
         nextIndex += 1
-        followCandidate(animated: true)
+        model?.announcePiece(kind.title, level: score)
+        followPiece()
     }
 
-    private func followCandidate(animated: Bool) {
+    private func followPiece() {
         guard let candidate else { return }
-        // Keep spawn near the upper third while the visible tower stays below.
-        let desired = max(size.height / 2, candidate.position.y - size.height * 0.24)
-        cameraCenterY = desired
-        worldCamera.removeAction(forKey: "follow")
-        let destination = CGPoint(x: size.width / 2, y: desired)
-        if animated {
-            let move = SKAction.move(to: destination, duration: 0.38)
-            move.timingMode = .easeInEaseOut
-            worldCamera.run(move, withKey: "follow")
-        } else {
-            worldCamera.position = destination
-        }
+        // Candidate remains below top of actual SpriteKit viewport. Bottom
+        // SwiftUI controls are not inside this scene at all.
+        let target = max(size.height / 2, candidate.position.y - size.height * 0.26)
+        cameraHeight = target
+        followCamera.removeAction(forKey: "camera")
+        let move = SKAction.move(to: CGPoint(x: size.width / 2, y: target), duration: 0.33)
+        move.timingMode = .easeInEaseOut
+        followCamera.run(move, withKey: "camera")
     }
 
     func rotateCandidate(degrees: CGFloat) {
-        guard let candidate, model?.canAim == true else { return }
+        guard model?.canAim == true, let candidate else { return }
         candidate.zRotation += degrees * .pi / 180
+        candidate.run(SKAction.sequence([
+            SKAction.scale(to: 1.06, duration: 0.08),
+            SKAction.scale(to: 1.0, duration: 0.08)
+        ]))
     }
 
-    func commitDrop() {
-        guard let candidate else { return }
-        self.candidate = nil
-        let score = model?.score ?? 0
-        let kind = inferredKind(for: candidate)
-        // Use the authored local physics shape, never the rotated frame bounding box.
-        let (_, body) = shape(for: kind, difficulty: score)
-        body.affectedByGravity = true
-        candidate.physicsBody = body
-        candidate.name = "placed"
-        placed.append(candidate)
-        activeDropped = candidate
-        dropStarted = nil
-        stableSince = nil
+    @discardableResult
+    func commitDrop() -> Bool {
+        guard let object = candidate else { return false }
+        candidate = nil
+        let (_, body) = makePiece(activeDefinition, score: model?.score ?? 0)
+        object.physicsBody = body
+        object.name = "placed"
+        placed.append(object)
+        falling = object
+        dropTime = nil
+        contactSince = nil
+        return true
     }
 
-    // The candidate's shape is recorded at spawn, so its collision geometry
-    // never depends on the transformed bounding box after rotation.
-    private var candidateKind: ShapeKind = .crate
-
-    private func inferredKind(for node: SKShapeNode) -> ShapeKind {
-        candidateKind
-    }
-
-    override func update(_ time: TimeInterval) {
-        guard let phase = model?.phase, phase != .over else { return }
-        let lost = placed.contains { node in
-            node.position.y < floorY - 84 ||
-            abs(node.position.x - size.width / 2) > size.width * 0.68
+    private func hasSupportingContact(_ object: SKShapeNode) -> Bool {
+        guard let body = object.physicsBody else { return false }
+        return body.allContactedBodies().contains { other in
+            guard let n = other.node else { return false }
+            return n !== object && n.position.y < object.position.y + 15
         }
-        if lost {
+    }
+
+    private func finishDrop() {
+        guard falling != nil else { return }
+        falling = nil
+        dropTime = nil
+        contactSince = nil
+        model?.completedPlacement()
+        sparkle()
+    }
+
+    private func sparkle() {
+        let label = SKLabelNode(fontNamed: "AvenirNext-Heavy")
+        label.text = ["NICE!", "CLEAN!", "SAVED!", "WOW!"][max(0, (model?.score ?? 1) - 1) % 4]
+        label.fontSize = 25
+        label.fontColor = .init(red: 1, green: 0.85, blue: 0.55, alpha: 1)
+        label.position = CGPoint(x: size.width / 2, y: followCamera.position.y + size.height * 0.18)
+        label.zPosition = 50
+        addChild(label)
+        label.run(.sequence([.group([.moveBy(x: 0, y: 45, duration: 0.65), .fadeOut(withDuration: 0.65)]), .removeFromParent()]))
+    }
+
+    override func update(_ currentTime: TimeInterval) {
+        defer { lastUpdateTime = currentTime }
+        guard let phase = model?.phase, phase != .over else { return }
+        guard phase == .falling, let object = falling, let body = object.physicsBody else { return }
+        if dropTime == nil { dropTime = currentTime }
+        let elapsed = currentTime - (dropTime ?? currentTime)
+
+        // Only fail a DROP when the newly released piece has clearly fallen
+        // off the platform. Already placed blocks can shift without a bogus
+        // instant game over.
+        let missed = object.position.y < baseY - 95 ||
+            abs(object.position.x - size.width / 2) > size.width * 0.65
+        if missed {
             model?.failed()
-            activeDropped = nil
-            candidate?.removeFromParent()
-            candidate = nil
+            falling = nil
             return
         }
-        guard phase == .falling, let current = activeDropped,
-              let body = current.physicsBody else { return }
-        if dropStarted == nil { dropStarted = time }
-        let elapsed = time - (dropStarted ?? time)
+
+        // SpriteKit's contact graph is authoritative. Allow a generous
+        // settle window; never end a round simply because physics remained
+        // active for an arbitrary eight seconds.
+        let supported = hasSupportingContact(object)
         let speed = hypot(body.velocity.dx, body.velocity.dy)
-        let slow = speed < 12 && abs(body.angularVelocity) < 0.22
-        if elapsed > 0.85 && slow {
-            if stableSince == nil { stableSince = time }
-            if time - (stableSince ?? time) > 0.42 {
-                activeDropped = nil
-                dropStarted = nil
-                stableSince = nil
-                model?.completedPlacement()
+        let almostStill = speed < 38 && abs(body.angularVelocity) < 0.85
+        if elapsed > 0.55 && supported && almostStill {
+            if contactSince == nil { contactSince = currentTime }
+            if currentTime - (contactSince ?? currentTime) > 0.32 {
+                finishDrop()
+                return
             }
         } else {
-            stableSince = nil
+            contactSince = nil
         }
-        if elapsed > 9 { model?.failed(); activeDropped = nil }
+
+        // Stubbornly moving but supported bodies must not leave the UI in an
+        // endless waiting state; accept the placement after a grace period.
+        if elapsed > 3.5 && supported {
+            finishDrop()
+        } else if elapsed > 7.0 && !supported {
+            // A falling piece may still be in air; only fail once out of
+            // bounds. Keep a truthful progress message instead.
+            model?.updateWaitingStatus()
+        }
     }
 
     override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
@@ -235,12 +323,11 @@ final class TowerScene: SKScene {
     }
 
     override func touchesMoved(_ touches: Set<UITouch>, with event: UIEvent?) {
-        guard model?.canAim == true, let candidate,
-              let touch = touches.first else { return }
-        let nextX = touch.location(in: self).x
-        let dx = nextX - (lastTouchX ?? nextX)
-        candidate.position.x = max(40, min(size.width - 40, candidate.position.x + dx))
-        lastTouchX = nextX
+        guard model?.canAim == true, let candidate, let touch = touches.first else { return }
+        let x = touch.location(in: self).x
+        let dx = x - (lastTouchX ?? x)
+        candidate.position.x = max(38, min(size.width - 38, candidate.position.x + dx))
+        lastTouchX = x
     }
 
     override func touchesEnded(_ touches: Set<UITouch>, with event: UIEvent?) {
