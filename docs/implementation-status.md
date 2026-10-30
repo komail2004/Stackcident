@@ -134,3 +134,18 @@ At 3:19 PM the simulator screenshot showed score 1, a red crate on the platform,
 **Source change:** removed the first-object special case and added one generalized landing-resolution path for every dropped shape: requires geometrically plausible supporting surface, tracks per-frame visible translation/rotation, and completes after 0.4 seconds of visibly stable grounded pose once a minimum release interval has passed. For SpriteKit jitter, a piece still grounded after 3 seconds also resolves. Real below-floor loss remains under DropRules; ungrounded free fall cannot score through this fallback.
 
 **Risk:** this is a gameplay workaround on existing SpriteKit dynamic bodies; the three-second grounded recovery can score a piece that is still sliding while near a surface. A robust final implementation needs support normals/contact graph and stable pose across an explicit bounded interval. No physical iOS execution has been verified by the assistant. Check second and third objects plus off-edge drops in Xcode before claiming fix.
+
+
+## 2026-10-30 — Full source audit / collision and landing consolidation
+
+**Trigger:** Screenshot at 3:24 PM showed score 0, empty platform and game over immediately after releasing a block. Prior screenshots showed repeated indefinite settling, wobble, and phantom losses.
+
+**Audited:** RootView, ContentView, GameModel, TowerScene, DropRules, XcodeGen project settings, Info.plist, unit tests and iOS CI workflow. This was a source review, not a device execution.
+
+**Implementation replaced:** Removed the accumulation of first-piece special-cases, geometry-only timers, stale support flags, and recursive action watchdogs. \`TowerScene\` now assigns explicit category/collision masks to static platform and dynamic pieces, holds the same precreated physics body through release, evaluates physics *after* SpriteKit steps, records a short observed-motion window, and uses one grounded+stable decision for all objects. The platform has high friction/no restitution; object masses are normalized and gravity is less extreme. Misses only happen below the kill line. GameModel explains the reason.
+
+**Tests replaced:** \`DropRulesTests\` now checks first platform landing, second-piece support, airborne and off-platform shapes, delayed calm support, genuine misses, and no timer-only false completion. \`GameModelTests\` additionally checks that failure outside an active drop is ignored.
+
+**Project QA:** Added \`docs/qa-smoke-checklist.md\` for 14 end-to-end iPhone scenarios. No actual Xcode build, XCTest completion, frame rate measurements or phone test results have been verified. GitHub combined status returned no confirmed passing status checks.
+
+**Known limitations:** SpriteKit shape bounding boxes are an approximation, especially with triangles and rolling objects. Rigid-body collisions may still be unstable on unusual stacks; challenge balance has not been measured. Future Vision remains unavailable until separate cloned-world simulation passes parity tests. This is a coherent prototype architecture, not a certification of perfection.
