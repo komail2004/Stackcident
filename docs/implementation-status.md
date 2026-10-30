@@ -66,3 +66,17 @@ Still unverified: Xcode build on user's Mac, simulator/device gameplay, edge-cas
 Manual test checklist: drop a centered crate; drop a sphere; make an off-edge miss; tilt a wedge; complete 10 drops; test immediately after Retry; drag at both extremes; validate no unexpected game-over from a previously placed body; check UI and FPS on iPhone 17 Pro simulator. Send exact compiler diagnostics if build fails.
 
 **Physics limitation:** SpriteKit contact checks and timeouts remain prototype heuristics, not the deterministic authoritative solver committed to in the architecture docs.
+
+## 2026-10-30 — Repository audit, rule extraction and documentation reconciliation
+
+**Committed to `main`:** identified and removed an undeclared `wasReleasedBelowSpawn` reference that could prevent compiling. Extracted `DropRules.swift` from the SpriteKit scene and made it the decision source for accepted, missed, and continuing drops. Added `DropRulesTests.swift` covering actual lower-bound loss, false wobble loss, supported dwell, recently supported grace, stationary airborne no-score, and fallback near supports. Adjusted GameModel to avoid spamming the same waiting status and provide playful success/failure lines.
+
+**Presentation already in repository:** native splash after iOS launch, menu/Start Game, How to Play sheet, SwiftUI HUD, Game Center-free local best score, starry SpriteKit world with geometric challenge pieces, a narrow platform, and camera following the tower. These are currently source-implemented features; no verified device run has been provided for this revision.
+
+**Documentation updated in the same sequence:** `overview.md`, `requirements.md`, `docs/architecture.md`, `docs/physics-engine.md`, and `README.md`. Requirement status and known prototype-vs-production differences are now explicit.
+
+**Remaining important risks:** SpriteKit contact support detection is approximate and can misread edge contacts; some midair/edge cases may still require resolution. Current score and difficulty are untested with players. There are no physical test reports, build logs, code signing results, snapshot-capable solver, or genuine Future Vision yet.
+
+**Mandatory next validation in Xcode:** `git pull origin main && xcodegen generate`, then Cmd+B, Cmd+U, Cmd+R. Run 10 normal drops, off-edge miss, rapid tapping, repeated Retry, home→start, tall tower camera, and background/foreground behavior. Fix observed build/scene failures before attempting larger visual refactors or claiming polished production quality.
+
+**Technical next step after validation:** prototype a single step-able 2D solver reused by live and preview worlds, define state cloning and record parity measurements. Do not fake future replay or enable prediction tokens prematurely.
