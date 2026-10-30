@@ -2,6 +2,7 @@ import SwiftUI
 import SpriteKit
 
 struct ContentView: View {
+    var onExit: () -> Void = {}
     @StateObject private var model = GameModel()
     @State private var scene = TowerScene(size: CGSize(width: 390, height: 550))
 
@@ -13,6 +14,12 @@ struct ContentView: View {
         GeometryReader { geometry in
             VStack(spacing: 0) {
                 HStack(alignment: .center, spacing: 10) {
+                    Button(action: onExit) {
+                        Image(systemName: "house.fill")
+                            .font(.system(size: 15, weight: .bold))
+                            .frame(width: 28, height: 42)
+                    }
+                    .accessibilityLabel("Return to main menu")
                     stat("SCORE", value: model.score)
                     Spacer(minLength: 5)
                     VStack(spacing: 4) {
@@ -119,6 +126,7 @@ struct ContentView: View {
                                     height: max(280, geometry.size.height - 280))
                 scene.model = model
                 model.scene = scene
+                scene.setPaused(false)
             }
             .onChange(of: geometry.size) { _, size in
                 scene.size = CGSize(width: size.width, height: max(280, size.height - 280))
