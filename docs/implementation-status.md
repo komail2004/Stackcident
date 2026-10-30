@@ -46,3 +46,23 @@ Changes committed to `main`:
 **Remaining shortcomings:** These are prototype source changes, not yet compiled/tested on the user's Mac. SpriteKit physics is not prediction-parity capable as-is. Future Vision remains deliberately disabled rather than faked. Level tuning, contact detection, stability, camera limits, accessibility and camera behavior across device sizes still require simulator and physical-iPhone review.
 
 **To test:** In the cloned repository run `git pull origin main`, open the existing Xcode project, build/run; generate Xcode project only if project.yml changed. Report compiler diagnostics or gameplay footage for corrections.
+
+## 2026-10-29 — Arcade polish and dropped-object correctness pass
+
+User reported low difficulty, placeholder visuals, indefinite “waiting” states, and false game-over.
+
+Code changes:
+- Replaced unreliable velocity-only settling with physical contact + dwell checks and a forgiving, bounded supported-placement resolution path.
+- Removed the previous hard-coded 8/9 second automatic **game over** timeout.
+- Restricted failure checks to a clearly missed **currently falling** object instead of shifting pieces from earlier successful placements.
+- Made `GameModel.drop()` advance to falling only if the SpriteKit scene actually accepted a drop.
+- Rebuilt the object progression around eight mechanical silhouettes, with a sphere on the second drop, narrow/awkward objects and diamond, column, barrel and tiny variants.
+- Added starry background, altitude markers, platform glow, bright outlined shapes, arrival fades, success popups and a tracking camera.
+- Polished native SwiftUI header, stage labels, translucent banner, gradient buttons, spacing and disabled states.
+- Added unit checks for failed drop dispatch, stage labels, and preventing invalid score increments.
+
+Still unverified: Xcode build on user's Mac, simulator/device gameplay, edge-case contact physics, fair difficulty, actual Future Vision (still intentionally unavailable).
+
+Manual test checklist: drop a centered crate; drop a sphere; make an off-edge miss; tilt a wedge; complete 10 drops; test immediately after Retry; drag at both extremes; validate no unexpected game-over from a previously placed body; check UI and FPS on iPhone 17 Pro simulator. Send exact compiler diagnostics if build fails.
+
+**Physics limitation:** SpriteKit contact checks and timeouts remain prototype heuristics, not the deterministic authoritative solver committed to in the architecture docs.
