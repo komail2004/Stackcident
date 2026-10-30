@@ -32,14 +32,15 @@ final class GameModel: ObservableObject {
             UserDefaults.standard.set(best, forKey: "bestScore")
         }
         phase = .ready
-        status = "Another impossible save!"
+        status = ["Clean landing!", "Physics approves. Barely.", "A bold architectural decision.", "Somehow, that worked."][score % 4]
         scene?.spawnNext()
     }
 
     func failed() {
         guard phase != .over else { return }
         phase = .over
-        status = "STACKCIDENT! The tower fell."
+        let lines = ["Gravity wins this round.", "The tower has filed a complaint.", "Structural optimism was not enough.", "That landing was… ambitious."]
+        status = lines[score % lines.count]
     }
 
     func restart() {
@@ -58,7 +59,9 @@ final class GameModel: ObservableObject {
 
     func updateWaitingStatus() {
         guard phase == .falling else { return }
-        status = "Still falling… watch the edges!"
+        if status != "Checking that landing…" {
+            status = "Checking that landing…"
+        }
     }
 
     func futureVision() {
