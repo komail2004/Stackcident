@@ -585,3 +585,25 @@ Quantitative parity and minimum fun/retention gates are deliberately **TBD until
 ## 23. Physics subsystem verification extension (2026-10-29)
 
 The authoritative engineering detail for FR-010–021, FR-030–034, FR-040–055, NFR-010–018, NFR-020–026, and NFR-050–057 is [docs/physics-engine.md](docs/physics-engine.md). Its PHY-001–PHY-025 fixture suite extends the E2E and PV test matrices. Before physics acceptance, record the chosen solver/version, iOS physical test devices, fixed timestep, full snapshot contract, canonical release semantics, quantitative parity thresholds, false-confident-safe cases, prediction latency distribution, cancellation correctness, and memory/thermal measurements. These numeric thresholds and engine choices remain **open decisions until measured**; the extra specification must not be interpreted as working code or an unconditional guarantee of deterministic cross-device behavior.
+
+
+---
+
+## 24. Implemented prototype controls and verification addendum — 2026-10-30
+
+**Scope:** Native iPhone only. This addendum clarifies implementation traceability; it does not waive mandatory acceptance criteria.
+
+| ID | Executable prototype behavior | Test evidence / status |
+|---|---|---|
+| FR-001–003 | SwiftUI root, splash → menu → game navigation | Source implemented; manual navigation QA pending |
+| FR-010–019 | SpriteKit aim, rotate, drop, provisional settlement and score | Source implemented; physics accuracy unverified |
+| FR-017 | A false loss MUST NOT be raised merely by a lateral wobble or old-body motion | `DropRulesTests.testWobblingContactIsNotImmediateLoss` (written, not run) |
+| FR-018 | Unsupported motionless airborne bodies MUST NOT score | `DropRulesTests.testUnsupportedStationaryMidairNeverScores` (written, not run) |
+| FR-040–055 | Future Vision actual isolated simulation | **NOT IMPLEMENTED**; release-blocking future milestone |
+| FR-070 | Intro screen and basic How to Play sheet | Source implemented; accessibility/playability QA pending |
+| NFR-010–018 | Performance goals | No device measurements yet; not accepted |
+| NFR-020–022 | Physics/preview equivalence | Not validated; solver selection remains open |
+
+**New P0 drop-resolution acceptance fixtures:** late stationary unsupported body does not score; brief contact loss doesn't immediately fail; calm supported body scores once; lower-bound crossing fails once; previous placements wobble without triggering loss; rapid repeated Drop actions do not create duplicate bodies; restart clears scene state; menu navigation doesn't resume a stale live scene. Tests are necessary but insufficient: physical SpriteKit integration must also be tested.
+
+**Open defect risk:** an airborne body can remain in a waiting phase if it never contacts support or reaches the bottom boundary due to a solver anomaly. The proposed policy refuses to invent a success. If observed, capture a reproducible state and add explicit failsafe based on verified body trajectory and physical bounds, not an arbitrary timeout.
