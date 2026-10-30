@@ -2,73 +2,112 @@ import XCTest
 @testable import Stackcident
 
 final class DropRulesTests: XCTestCase {
-    private func sample(elapsed: TimeInterval = 1,
-                        y: CGFloat = 150,
-                        supported: Bool = false,
-                        recently: Bool = false,
-                        plausible: Bool = false,
-                        speed: CGFloat = 8,
-                        angular: CGFloat = 0.1,
-                        calm: TimeInterval = 0) -> DropRules.Observation {
-        DropRules.Observation(elapsed: elapsed, y: y, killY: 25,
-                              supported: supported, recentlySupported: recently,
-                              hasPlausibleRestingSupport: plausible,
-                              linearSpeed: speed, angularSpeed: angular,
-                              calmSupportDuration: calm)
+    private func observation(
+        elapsed: TimeInterval = 1.5,
+        bottom: CGFloat = 100,
+        supported: Bool = true,
+        stableDuration: TimeInterval = 0.5,
+        lowMotion: Bool = true
+    ) -> DropRules.Observation {
+        .init(
+            elapsed: elapsed,
+            pieceBottom: bottom,
+            killLine: 10,
+            geometricSupport: supported,
+            stableDuration: stableDuration,
+            lowMotion: lowMotion
+        )
     }
 
-    func testRestingOnStaticPlatformCanCompleteWithoutContactCallback() {
-        // TowerScene turns calm geometric floor support into supported=true.
-        // This is the initial-drop regression shown in the simulator.
-        XCTAssertEqual(DropRules.decide(sample(elapsed: 1.3,
-                                               supported: true,
-                                               speed: 0.4,
-                                               angular: 0.01,
-                                               calm: 0.4)), .accepted)
+    func testFirstDropRestingOnPlatformScores() {
+        let piece = CGRect(x: 160, y: 124, width: 65, height: 44)
+        let base = CGRect(x: 125, y: 104, width: 140, height: 20)
+        XCTAssertTrue(DropRules.isGrounded(
+            piece: piece, pieceCenterY: piece.midY, supports: [base]
+        ))
+        XCTAssertEqual(DropRules.decide(observation()), .accepted)
     }
 
-    func testGeometricNearSupportNeverScoresWhileMovingFast() {
-        XCTAssertEqual(DropRules.decide(sample(elapsed: 6,
-                                               plausible: true,
-                                               speed: 80)), .continueFalling)
+    func testSecondPieceCanRestOnFirst() {
+        let first = CGRect(x: 160, y: 124, width: 65, height: 44)
+        let second = CGRect(x: 177, y: 168, width: 55, height: 50)
+        XCTAssertTrue(DropRules.isGrounded(
+            piece: second, pieceCenterY: second.midY, supports: [first]
+        ))
     }
 
-    func testWobblingContactIsNotImmediateLoss() {
-        XCTAssertEqual(DropRules.decide(sample(supported: true, speed: 80)),
-                       .continueFalling)
+    func testFarAbovePlatformDoesNotCountAsLanded() {
+        let piece = CGRect(x: 160, y: 200, width: 65, height: 44)
+        let base = CGRect(x: 125, y: 104, width: 140, height: 20)
+        XCTAssertFalse(DropRules.isGrounded(
+            piece: piece, pieceCenterY: piece.midY, supports: [base]
+        ))
     }
 
-    func testTrueLowerBoundaryMissEndsRun() {
-        XCTAssertEqual(DropRules.decide(sample(y: 24, supported: true)),
-                       .missed)
+    func testPieceOffPlatformDoesNotCountAsLanded() {
+        let piece = CGRect(x: 290, y: 124, width: 65, height: 44)
+        let base = CGRect(x: 125, y: 104, width: 140, height: 20)
+        XCTAssertFalse(DropRules.isGrounded(
+            piece: piece, pieceCenterY: piece.midY, supports: [base]
+        ))
     }
 
-    func testNewObjectRequiresSettledDwellTime() {
-        XCTAssertEqual(DropRules.decide(sample(supported: true, calm: 0.1)),
-                       .continueFalling)
-        XCTAssertEqual(DropRules.decide(sample(supported: true, calm: 0.42)),
-                       .accepted)
+    func testPieceBelowSupportDoesNotCountAsLanded() {
+        let piece = CGRect(x: 160, y: 50, width: 65, height: 44)
+        let base = CGRect(x: 125, y: 104, width: 140, height: 20)
+        XCTAssertFalse(DropRules.isGrounded(
+            piece: piece, pieceCenterY: piece.midY, supports: [base]
+        ))
     }
 
-    func testUnsupportedStationaryMidairNeverScores() {
-        XCTAssertEqual(DropRules.decide(sample(elapsed: 9, speed: 0)),
-                       .continueFalling)
+    func testWobblingDoesNotImmediatelyScoreOrLose() {
+        XCTAssertEqual(DropRules.decide(
+            observation(stableDuration: 0, lowMotion: false)
+        ), .continueFalling)
     }
 
-    func testRecentlySupportedCanFinishAfterGracePeriod() {
-        XCTAssertEqual(DropRules.decide(sample(elapsed: 3.1, recently: true,
-                                               speed: 20)), .accepted)
+    func testSupportedAndCalmNeedsDwell() {
+        XCTAssertEqual(DropRules.decide(
+            observation(stableDuration: 0.15)
+        ), .continueFalling)
+        XCTAssertEqual(DropRules.decide(
+            observation(stableDuration: 0.40)
+        ), .accepted)
     }
 
-    func testLateFallbackNeedsNearSupportAndLowMotion() {
-        XCTAssertEqual(DropRules.decide(sample(elapsed: 6, plausible: true,
-                                               speed: 8)), .accepted)
-        XCTAssertEqual(DropRules.decide(sample(elapsed: 6, plausible: true,
-                                               speed: 60)), .continueFalling)
+    func testMissBelowKillLineEndsRun() {
+        XCTAssertEqual(DropRules.decide(
+            observation(bottom: 9, supported: false)
+        ), .missed)
     }
 
-    func testJustReleasedObjectCannotImmediatelyScore() {
-        XCTAssertEqual(DropRules.decide(sample(elapsed: 0.2, supported: true,
-                                               calm: 1)), .continueFalling)
+    func testStationaryObjectInMidairNeverScores() {
+        XCTAssertEqual(DropRules.decide(
+            observation(elapsed: 20, supported: false)
+        ), .continueFalling)
+    }
+
+    func testTimeAloneNeverCausesGameOverOrSuccess() {
+        XCTAssertEqual(DropRules.decide(
+            observation(elapsed: 200, supported: false, lowMotion: false)
+        ), .continueFalling)
+    }
+
+    func testLongSupportedAndSlowObjectResolves() {
+        XCTAssertEqual(DropRules.decide(
+            observation(elapsed: 3.2, stableDuration: 0.1)
+        ), .accepted)
+    }
+
+    func testVeryEarlyContactCannotScore() {
+        XCTAssertEqual(DropRules.decide(
+            observation(elapsed: 0.2, stableDuration: 0.5)
+        ), .continueFalling)
+    }
+
+    func testSlidingObjectCannotScoreFromTimeout() {
+        XCTAssertEqual(DropRules.decide(
+            observation(elapsed: 10, supported: true, lowMotion: false)
+        ), .continueFalling)
     }
 }
