@@ -41,3 +41,19 @@ Native iPhone prototype now has an in-app animated splash, a Start Game menu, Ho
 **Pull in Xcode:** `git pull origin main`; regenerate with `xcodegen generate` if you have not done so since the new Swift files were added, then open `Stackcident.xcodeproj`, build with Cmd+B, run with Cmd+R, and test with Cmd+U.
 
 **Must verify on-device:** splash → Start Game → Drop → next piece → miss → Retry → Home; wedge and ball physics, tall-stack camera framing, no phantom game-over, no unsupported false score, and lifecycle transitions. Xcode compilation and device tests have not been run by the assistant. **Future Vision is still disabled** pending a same-engine separate-world physics implementation and accuracy proof.
+
+
+## 2026-10-30 — Physics stabilization rebuild
+
+Repeated iPhone Simulator screenshots showed unsupported/incorrect game-over, stacked objects shaking, and the drop controls getting stuck. The scene was restructured rather than patched with additional timeouts.
+
+- One explicit static platform collider and explicit piece/platform collision masks.
+- Each object has a physics body authored once, with its final geometry reused at release.
+- Physics is sampled in \`didSimulatePhysics\` after SpriteKit advances the world.
+- A single pure \`DropRules\` system handles every object, including the first and second drops.
+- A piece scores only when near physical support and motion is low for a dwell period. No timer-only loss.
+- Visible loss messaging now describes a piece falling below the platform.
+- Mass and gravity are tuned for an iPhone-sized SpriteKit scene, with dynamic pieces retained.
+- Tests and manual reproduction steps: [iOS QA Smoke Checklist](docs/qa-smoke-checklist.md).
+
+**Still unverified on device:** The assistant cannot execute Xcode/Simulator here. Do not interpret committed code as a passing device build. Check [GitHub Actions](https://github.com/komail2004/Stackcident/actions), then run the smoke tests locally. Future Vision remains intentionally inactive.
