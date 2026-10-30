@@ -47,8 +47,10 @@ struct ContentView: View {
                     HStack(spacing: 7) {
                         Image(systemName: "sparkle")
                             .foregroundStyle(accent)
-                        Text("STACK • BALANCE • SURVIVE")
-                            .tracking(1.0)
+                        Text("UP NEXT · \(model.nextPieceName)")
+                            .tracking(0.6)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
                     }
                     .font(.system(size: 10, weight: .bold, design: .rounded))
                     .foregroundStyle(.white.opacity(0.65))
