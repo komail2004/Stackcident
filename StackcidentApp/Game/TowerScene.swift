@@ -59,7 +59,7 @@ final class TowerScene: SKScene {
         guard !didInitialize else { return }
         didInitialize = true
         backgroundColor = SKColor(red: 0.045, green: 0.061, blue: 0.12, alpha: 1)
-        physicsWorld.gravity = CGVector(dx: 0, dy: -620)
+        physicsWorld.gravity = CGVector(dx: 0, dy: -420)
         addChild(followCamera)
         camera = followCamera
         resetWorld()
@@ -108,6 +108,8 @@ final class TowerScene: SKScene {
         // depend on an engine's undocumented default bitmask settings.
         let baseBody = SKPhysicsBody(rectangleOf: platformSize)
         baseBody.isDynamic = false
+        baseBody.friction = 0.90
+        baseBody.restitution = 0
         baseBody.categoryBitMask = Collision.platform
         baseBody.collisionBitMask = Collision.piece
         baseBody.contactTestBitMask = Collision.piece
@@ -206,6 +208,9 @@ final class TowerScene: SKScene {
         glint.position = CGPoint(x: -10, y: 9)
         node.addChild(glint)
 
+        // Normalize mass for scene-point-sized geometry. A default density
+        // applied to very large shapes can produce extreme impulses.
+        body.mass = kind == .barrel ? 2.2 : 0.85
         body.isDynamic = true
         body.affectedByGravity = true
         body.allowsRotation = true
