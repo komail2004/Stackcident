@@ -749,3 +749,12 @@ The authoritative SpriteKit prototype now has a single static floor collider, ex
 The new decision inputs are bounding geometry support, a sampled visual-motion interval, a short stability dwell, elapsed release time and a world-space kill line. Source-level regression tests and the [QA smoke checklist](qa-smoke-checklist.md) cover first, second, and later object landing paths. Contact geometry is still not a complete normal-based support graph; SpriteKit remains an interim solver. The production Future Vision world-snapshot architecture has **not** been implemented or validated.
 
 \`GameModel\` is still the UI-level state machine for score/phase, and \`TowerScene\` owns physics decisions before invoking \`completedPlacement\` or \`failed\`. Never add a second timer or independent collision/scoring authority without updating the requirements and tests.
+
+
+## 22. Game-feel configuration and diagnostics contract — October 30, 2026
+
+The prototype's physical tuning settings now belong to `StackcidentApp/Game/GameFeel.swift`, rather than hardcoded values in multiple SpriteKit callbacks. `TowerScene` owns the physical implementation, `DropRules` decides whether a drop is grounded/accepted/missed, `GameFeel` owns gravity/material/damping/spawn and feedback constants, and `GameModel` separates durable HUD success status from the incoming-piece label.
+
+Any change to the gravity or body material must be accompanied by independent tests of fall duration, collision integrity, support detection, stable-ball wobble and wake-after-impact behavior; unverified tuning does not qualify as physics validation. Floating SpriteKit feedback durations and persistent SwiftUI state have separate responsibilities. The use of `SKPhysicsBody.isResting` is restricted to slow and grounded bodies after accepted placements, with dynamic collision behavior retained. Instrument actual ball pose/velocity if persistent jitter remains.
+
+This is not evidence that the chosen SpriteKit live solver can support accurate cloned-world Future Vision. The distinct physics engine decision and parity gate remain open.
