@@ -843,3 +843,12 @@ The current prototype retains the native SwiftUI splash/menu, portrait HUD and S
 **What is proven:** the pure landing rules compiled under the available Linux Swift toolchain, and five standalone geometry/outcome assertions passed. **What is not proven:** SpriteKit runtime collisions, Xcode compilation, XCUITest, iPhone Simulator playthroughs, real-device FPS, and a fully reliable 10-piece run. The first-party Future Vision prediction remains intentionally unimplemented.
 
 The detailed regression matrix is [docs/qa-smoke-checklist.md](docs/qa-smoke-checklist.md). Do not expand scope until it passes on an iPhone; if live SpriteKit remains unreliable, evaluate the controllable single-solver design laid out in the physics architecture instead of adding more ad hoc timeouts.
+
+
+## 21. October 30, 2026 — Gameplay feel and readable feedback
+
+The iPhone-only prototype now uses a centralized `GameFeel.swift` tuning module. The working gravity is **−195 scene points/s²**; spawn clearance is adjusted to produce a slower readable drop. Physics changes attempt to reduce small-ball contact jitter through less rebound, differentiated friction and angular damping, and carefully conditional resting that does **not** convert objects to immovable static bodies. The intended challenge remains fair geometry and dynamic physical balancing rather than unexplained motion or invisible accelerations.
+
+The success popup is designed to remain visible for **1.75 seconds** and then fade over **0.65 seconds**. The next object now has a dedicated `UP NEXT` HUD indicator; replacing a successful-placement message simply because a new object spawns is no longer intended behavior.
+
+These changes are **source-implemented and not yet acceptance-tested in Xcode**. See [requirements.md](requirements.md) FR-094–099 and NFR-068–072 and [the QA smoke checklist](docs/qa-smoke-checklist.md). They do not change the rule that Future Vision must use a validated real simulation before it is enabled.
